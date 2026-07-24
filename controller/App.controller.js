@@ -2,25 +2,14 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
-    "sap/m/MessageBox"
-], function (Controller, JSONModel, MessageToast, MessageBox) {
+    "sap/m/MessageBox",
+    "pos/model/products"
+], function (Controller, JSONModel, MessageToast, MessageBox, ProductCatalog) {
     "use strict";
 
-    /* ── 10 predefined products ───────────────────────────────────────── */
-    var PRODUCTS = [
-        { id: "P001", name: "Espresso",        category: "Beverages",  price: 2.50 },
-        { id: "P002", name: "Cappuccino",       category: "Beverages",  price: 3.80 },
-        { id: "P003", name: "Croissant",        category: "Bakery",     price: 2.20 },
-        { id: "P004", name: "Blueberry Muffin", category: "Bakery",     price: 2.90 },
-        { id: "P005", name: "Club Sandwich",    category: "Food",       price: 7.50 },
-        { id: "P006", name: "Caesar Salad",     category: "Food",       price: 6.80 },
-        { id: "P007", name: "Orange Juice",     category: "Beverages",  price: 3.20 },
-        { id: "P008", name: "Sparkling Water",  category: "Beverages",  price: 1.80 },
-        { id: "P009", name: "Chocolate Cake",   category: "Desserts",   price: 4.50 },
-        { id: "P010", name: "Fruit Salad",      category: "Desserts",   price: 3.90 }
-    ];
-
-    var TAX_RATE = 0.10;
+    // Products and category/tax-rate definitions live in model/products.js.
+    var PRODUCTS   = ProductCatalog.PRODUCTS;
+    var CATEGORIES = ProductCatalog.CATEGORIES;
 
     return Controller.extend("pos.controller.App", {
 
@@ -30,6 +19,10 @@ sap.ui.define([
             var oCatalogModel = new JSONModel({ products: PRODUCTS });
             this.getView().setModel(oCatalogModel, "catalog");
 
+            // Config model – categories with their tax rates (drives the tile subheader tax badge)
+            var oConfigModel = new JSONModel({ categories: CATEGORIES });
+            this.getView().setModel(oConfigModel, "config");
+
             // Cart model
             this._resetCartModel();
         },
@@ -37,10 +30,11 @@ sap.ui.define([
         /* ── Helpers ──────────────────────────────────────────────────── */
         _resetCartModel: function () {
             var oCartModel = new JSONModel({
-                items: [],
-                subtotal: 0,
-                tax: 0,
-                total: 0
+                items:        [],
+                subtotal:     0,
+                taxBreakdown: [],   // [ { label: "Tax 10% (Beverages)", amount: x }, … ]
+                tax:          0,
+                total:        0
             });
             this.getView().setModel(oCartModel, "cart");
         },
@@ -53,12 +47,39 @@ sap.ui.define([
                 return acc + item.subtotal;
             }, 0);
 
-            var fTax   = fSubtotal * TAX_RATE;
+            // Accumulate tax per category (each category has its own rate)
+            var oTaxBuckets = {};   // { "Beverages": { category, rate, base }, … }
+            aItems.forEach(function (item) {
+                var sKey = item.category;
+                if (!oTaxBuckets[sKey]) {
+                    oTaxBuckets[sKey] = { category: item.category, rate: item.taxRate, base: 0 };
+                }
+                oTaxBuckets[sKey].base += item.subtotal;
+            });
+
+            // Build breakdown array sorted by rate descending, then category name
+            var aTaxBreakdown = Object.keys(oTaxBuckets)
+                .sort(function (a, b) {
+                    var rDiff = oTaxBuckets[b].rate - oTaxBuckets[a].rate;
+                    return rDiff !== 0 ? rDiff : a.localeCompare(b);
+                })
+                .map(function (sKey) {
+                    var bucket = oTaxBuckets[sKey];
+                    var fAmt   = bucket.base * bucket.rate;
+                    var iPct   = Math.round(bucket.rate * 100);
+                    return {
+                        label:  "Tax " + bucket.category + " (" + iPct + "%)",
+                        amount: fAmt
+                    };
+                });
+
+            var fTax   = aTaxBreakdown.reduce(function (acc, b) { return acc + b.amount; }, 0);
             var fTotal = fSubtotal + fTax;
 
-            oModel.setProperty("/subtotal", fSubtotal);
-            oModel.setProperty("/tax",      fTax);
-            oModel.setProperty("/total",    fTotal);
+            oModel.setProperty("/subtotal",     fSubtotal);
+            oModel.setProperty("/taxBreakdown", aTaxBreakdown);
+            oModel.setProperty("/tax",          fTax);
+            oModel.setProperty("/total",        fTotal);
         },
 
         formatCurrency: function (fValue) {
@@ -66,10 +87,29 @@ sap.ui.define([
             return "€" + parseFloat(fValue).toFixed(2);
         },
 
+        // Short alias used in XML view bindings: formatter='.fmt'
+        fmt: function (fValue) { return this.formatCurrency(fValue); },
+
         // Used by ObjectNumber (number + unit="€"), returns just the numeric string
         formatNumber: function (fValue) {
             if (fValue === undefined || fValue === null) { return "0.00"; }
             return parseFloat(fValue).toFixed(2);
+        },
+
+        // Short alias used in XML view bindings: formatter='.fmtNum'
+        fmtNum: function (fValue) { return this.formatNumber(fValue); },
+
+        // Formats a tax rate (0–1) as a percentage string, e.g. 0.19 → "19%"
+        formatTaxRate: function (fRate) {
+            if (fRate === undefined || fRate === null) { return ""; }
+            return Math.round(fRate * 100) + "%";
+        },
+
+        // Used on the product tile subheader: "Beverages · 10%"
+        formatTileSubheader: function (sCategory, fRate) {
+            if (!sCategory) { return ""; }
+            if (fRate === undefined || fRate === null) { return sCategory; }
+            return sCategory + " · " + Math.round(fRate * 100) + "%";
         },
 
         /* ── Product tile pressed ─────────────────────────────────────── */
@@ -95,6 +135,7 @@ sap.ui.define([
                     name:     oProduct.name,
                     category: oProduct.category,
                     price:    oProduct.price,
+                    taxRate:  oProduct.taxRate,
                     quantity: 1,
                     subtotal: oProduct.price
                 });
@@ -168,12 +209,16 @@ sap.ui.define([
                 return;
             }
 
+            var aTaxBreakdown = oModel.getProperty("/taxBreakdown");
+
             var sNow   = new Date().toLocaleString();
             var sLines = aItems.map(function (item) {
+                var iTaxPct = Math.round((item.taxRate || 0) * 100);
                 return "<tr>" +
                     "<td>" + item.name + "</td>" +
                     "<td style='text-align:center'>" + item.quantity + "</td>" +
                     "<td style='text-align:right'>€" + item.price.toFixed(2) + "</td>" +
+                    "<td style='text-align:center'>" + iTaxPct + "%</td>" +
                     "<td style='text-align:right'>€" + item.subtotal.toFixed(2) + "</td>" +
                     "</tr>";
             }).join("");
@@ -196,14 +241,16 @@ sap.ui.define([
                 "<h2>POINT OF SALE</h2>",
                 "<div class='sub'>" + sNow + "</div>",
                 "<table>",
-                "<thead><tr><th>Item</th><th style='text-align:center'>Qty</th><th style='text-align:right'>Price</th><th style='text-align:right'>Total</th></tr></thead>",
+                "<thead><tr><th>Item</th><th style='text-align:center'>Qty</th><th style='text-align:right'>Price</th><th style='text-align:center'>Tax</th><th style='text-align:right'>Total</th></tr></thead>",
                 "<tbody>",
                 sLines,
                 "</tbody>",
                 "<tfoot>",
-                "<tr class='tax-row'><td colspan='3'>Subtotal</td><td style='text-align:right'>€" + fSubtotal.toFixed(2) + "</td></tr>",
-                "<tr class='tax-row'><td colspan='3'>Tax (10%)</td><td style='text-align:right'>€" + fTax.toFixed(2) + "</td></tr>",
-                "<tr class='total-row'><td colspan='3'>TOTAL</td><td style='text-align:right'>€" + fTotal.toFixed(2) + "</td></tr>",
+                "<tr class='tax-row'><td colspan='4'>Subtotal</td><td style='text-align:right'>€" + fSubtotal.toFixed(2) + "</td></tr>",
+                aTaxBreakdown.map(function (b) {
+                    return "<tr class='tax-row'><td colspan='4'>" + b.label + "</td><td style='text-align:right'>€" + b.amount.toFixed(2) + "</td></tr>";
+                }).join("\n"),
+                "<tr class='total-row'><td colspan='4'>TOTAL</td><td style='text-align:right'>€" + fTotal.toFixed(2) + "</td></tr>",
                 "</tfoot>",
                 "</table>",
                 "<div class='thank-you'>★ Thank you for your purchase! ★</div>",

@@ -39,7 +39,7 @@
                                         items="{catalog>/products}"
                                         class="posProductTile sapUiTinyMarginBegin sapUiTinyMarginTop"
                                         header="{catalog>name}"
-                                        subheader="{catalog>category}"
+                                        subheader="{parts: [{path:'catalog>category'}, {path:'catalog>taxRate'}], formatter:'.formatTileSubheader'}"
                                         frameType="OneByOne"
                                         press=".onProductPress">
                                         <tileContent>
@@ -71,10 +71,11 @@
                                            alternateRowColors="true"
                                            sticky="ColumnHeaders" mode="None">
                                         <columns>
-                                            <Column width="38%"><Text text="Item"/></Column>
-                                            <Column width="18%" hAlign="End"><Text text="Price"/></Column>
-                                            <Column width="18%" hAlign="Center"><Text text="Qty"/></Column>
-                                            <Column width="18%" hAlign="End"><Text text="Subtotal"/></Column>
+                                            <Column width="34%"><Text text="Item"/></Column>
+                                            <Column width="14%" hAlign="End"><Text text="Price"/></Column>
+                                            <Column width="12%" hAlign="Center"><Text text="Tax"/></Column>
+                                            <Column width="16%" hAlign="Center"><Text text="Qty"/></Column>
+                                            <Column width="16%" hAlign="End"><Text text="Subtotal"/></Column>
                                             <Column width="8%"  hAlign="Center"><Text text=""/></Column>
                                         </columns>
                                         <items>
@@ -82,6 +83,7 @@
                                                 <cells>
                                                     <ObjectIdentifier title="{cart>name}" text="{cart>category}"/>
                                                     <Text text="{path:'cart>price', formatter:'.fmt'}"/>
+                                                    <Text text="{path:'cart>taxRate', formatter:'.formatTaxRate'}"/>
                                                     <StepInput value="{cart>quantity}"
                                                         min="1" max="99" step="1" width="5rem"
                                                         change=".onQuantityChange"/>
@@ -101,10 +103,21 @@
                                             <Label text="Subtotal"/>
                                             <Text text="{path:'cart>/subtotal', formatter:'.fmt'}"/>
                                         </HBox>
-                                        <HBox justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
-                                            <Label text="Tax (10%)"/>
-                                            <Text text="{path:'cart>/tax', formatter:'.fmt'}"/>
-                                        </HBox>
+
+                                        <!-- One row per active tax bracket, rendered dynamically -->
+                                        <List id="taxBreakdownList"
+                                              items="{cart>/taxBreakdown}"
+                                              showNoData="false"
+                                              showSeparators="None">
+                                            <CustomListItem>
+                                                <HBox justifyContent="SpaceBetween"
+                                                      class="sapUiTinyMarginBottom">
+                                                    <Label text="{cart>label}"/>
+                                                    <Text text="{path:'cart>amount', formatter:'.fmt'}"/>
+                                                </HBox>
+                                            </CustomListItem>
+                                        </List>
+
                                         <HBox justifyContent="SpaceBetween" class="sapUiSmallMarginTop">
                                             <Label text="TOTAL" class="posTotalLabel"/>
                                             <ObjectNumber
