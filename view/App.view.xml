@@ -1,0 +1,126 @@
+<mvc:View
+    controllerName="pos.AppController"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:l="sap.ui.layout"
+    displayBlock="true"
+    height="100%">
+
+    <App id="posApp" height="100%">
+        <pages>
+            <Page showHeader="true" backgroundDesign="Solid">
+
+                <customHeader>
+                    <Bar>
+                        <contentLeft>
+                            <Title text="Point of Sale" level="H4"/>
+                        </contentLeft>
+                        <contentRight>
+                            <Button text="Clear Cart" icon="sap-icon://delete"
+                                    type="Negative" press=".onClearCart"/>
+                            <Button text="Print Receipt" icon="sap-icon://print"
+                                    type="Emphasized" press=".onPrintReceipt"/>
+                        </contentRight>
+                    </Bar>
+                </customHeader>
+
+                <content>
+                    <l:HorizontalLayout allowWrapping="false">
+
+                        <!-- LEFT: product catalog -->
+                        <l:VerticalLayout width="60%"
+                            class="sapUiMediumMarginBegin sapUiSmallMarginTop">
+                            <Title text="Product Catalog" level="H5"
+                                   class="sapUiSmallMarginBottom"/>
+                            <l:Grid defaultSpan="XL3 L4 M6 S12"
+                                    hSpacing="0.5" vSpacing="0.5">
+                                <content>
+                                    <GenericTile
+                                        items="{catalog>/products}"
+                                        class="posProductTile sapUiTinyMarginBegin sapUiTinyMarginTop"
+                                        header="{catalog>name}"
+                                        subheader="{catalog>category}"
+                                        frameType="OneByOne"
+                                        press=".onProductPress">
+                                        <tileContent>
+                                            <TileContent>
+                                                <content>
+                                                    <NumericContent
+                                                        value="{catalog>price}"
+                                                        scale="€"
+                                                        valueColor="Good"
+                                                        indicator="None"
+                                                        withMargin="false"
+                                                        iconLoaded="false"/>
+                                                </content>
+                                            </TileContent>
+                                        </tileContent>
+                                    </GenericTile>
+                                </content>
+                            </l:Grid>
+                        </l:VerticalLayout>
+
+                        <!-- RIGHT: shopping cart -->
+                        <l:VerticalLayout width="40%"
+                            class="sapUiSmallMarginTop sapUiSmallMarginEnd sapUiSmallMarginBegin">
+                            <Panel headerText="Shopping Cart" expandable="false"
+                                   backgroundDesign="Solid" class="posCartPanel">
+                                <content>
+                                    <Table id="cartTable" items="{cart>/items}"
+                                           noDataText="Cart is empty — add items from the catalog"
+                                           alternateRowColors="true"
+                                           sticky="ColumnHeaders" mode="None">
+                                        <columns>
+                                            <Column width="38%"><Text text="Item"/></Column>
+                                            <Column width="18%" hAlign="End"><Text text="Price"/></Column>
+                                            <Column width="18%" hAlign="Center"><Text text="Qty"/></Column>
+                                            <Column width="18%" hAlign="End"><Text text="Subtotal"/></Column>
+                                            <Column width="8%"  hAlign="Center"><Text text=""/></Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier title="{cart>name}" text="{cart>category}"/>
+                                                    <Text text="{path:'cart>price', formatter:'.fmt'}"/>
+                                                    <StepInput value="{cart>quantity}"
+                                                        min="1" max="99" step="1" width="5rem"
+                                                        change=".onQuantityChange"/>
+                                                    <ObjectNumber
+                                                        number="{path:'cart>subtotal', formatter:'.fmtNum'}"
+                                                        unit="€" emphasized="false"/>
+                                                    <Button icon="sap-icon://decline" type="Transparent"
+                                                        tooltip="Remove item" press=".onRemoveItem"/>
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+
+                                    <!-- Totals -->
+                                    <VBox class="sapUiSmallMargin">
+                                        <HBox justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
+                                            <Label text="Subtotal"/>
+                                            <Text text="{path:'cart>/subtotal', formatter:'.fmt'}"/>
+                                        </HBox>
+                                        <HBox justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
+                                            <Label text="Tax (10%)"/>
+                                            <Text text="{path:'cart>/tax', formatter:'.fmt'}"/>
+                                        </HBox>
+                                        <HBox justifyContent="SpaceBetween" class="sapUiSmallMarginTop">
+                                            <Label text="TOTAL" class="posTotalLabel"/>
+                                            <ObjectNumber
+                                                number="{path:'cart>/total', formatter:'.fmtNum'}"
+                                                unit="€" emphasized="true" state="Information"/>
+                                        </HBox>
+                                    </VBox>
+
+                                </content>
+                            </Panel>
+                        </l:VerticalLayout>
+
+                    </l:HorizontalLayout>
+                </content>
+            </Page>
+        </pages>
+    </App>
+
+</mvc:View>

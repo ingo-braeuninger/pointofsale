@@ -1,0 +1,32 @@
+/* ── POS custom styles ────────────────────────────────────────────────── */
+
+.posProductTile {
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+    border-radius: 8px;
+}
+
+.posProductTile:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.posCartPanel {
+    min-height: 300px;
+    border-radius: 8px;
+}
+
+.posTotalLabel {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Make the HorizontalLayout fill vertical space */
+.sapUiHLayout {
+    height: 100%;
+}
+
+/* Print: hide everything except the popup */
+@media print {
+    #receipt-print-area { display: block !important; }
+    body > *:not(#receipt-print-area) { display: none !important; }
+}

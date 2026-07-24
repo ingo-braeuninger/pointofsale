@@ -1,0 +1,32 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout">
+
+    <l:Grid defaultSpan="XL3 L4 M6 S12" hSpacing="0.5" vSpacing="0.5">
+        <content>
+            <GenericTile
+                class="sapUiTinyMarginBegin sapUiTinyMarginTop posProductTile"
+                press=".onProductPress"
+                items="{catalog>/products}"
+                header="{catalog>name}"
+                subheader="{catalog>category}"
+                frameType="OneByOne">
+                <tileContent>
+                    <TileContent>
+                        <content>
+                            <NumericContent
+                                value="{catalog>price}"
+                                scale="€"
+                                valueColor="Good"
+                                indicator="None"
+                                withMargin="false"
+                                iconLoaded="false" />
+                        </content>
+                    </TileContent>
+                </tileContent>
+            </GenericTile>
+        </content>
+    </l:Grid>
+
+</core:FragmentDefinition>
