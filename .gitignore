@@ -1,0 +1,3 @@
+﻿# Ignore transaction JSON files written at runtime, but keep the folder itself
+transactions/*.json
+
