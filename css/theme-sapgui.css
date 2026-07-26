@@ -1,0 +1,292 @@
+/* ═══════════════════════════════════════════════════════════════
+   THEME: SAP GUI  (classic SAP R/3 desktop look)
+   Faithfully reproduces the classic SAP Graphical User Interface
+   style: flat grey shell, bevelled borders, dark-blue toolbar,
+   Arial/Helvetica, no rounded corners anywhere.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Reset & base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    margin: 0; padding: 0;
+    background: #ECECEC;
+    color: #000000;
+    font-family: Arial, Helvetica, "Liberation Sans", sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* ── POS Shell ──────────────────────────────────────────────── */
+#posShell { display:flex; height:100vh; flex-direction:column; }
+
+/* SAP GUI toolbar bar — dark navy with white text */
+#posHeader {
+    flex: 0 0 auto; height: 44px;
+    background: #003399;
+    border-bottom: 2px solid #001A66;
+    padding: 0 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 10;
+}
+#posHeader h1 {
+    margin: 0; font-size: 13px; font-weight: bold;
+    color: #FFFFFF; letter-spacing: 0.2px;
+    text-transform: uppercase;
+}
+#posHeaderBtns { display:flex; gap:4px; }
+
+#posBody { flex:1 1 auto; display:flex; overflow:hidden; }
+
+/* catalog area — classic SAP background grey */
+#posCatalogWrap {
+    flex: 0 0 60%; overflow-y: auto;
+    padding: 8px; box-sizing: border-box;
+    background: #ECECEC;
+}
+#posCatalogWrap.dimmed { opacity:.35; pointer-events:none; }
+
+/* right panel — white content area with sunken border */
+#posOrderWrap {
+    flex: 0 0 40%; display:flex; flex-direction:column;
+    border-left: 1px solid #808080;
+    background: #FFFFFF; overflow: hidden;
+}
+#posOrderHeader {
+    padding: 4px 8px; flex:0 0 auto;
+    border-bottom: 2px solid #808080;
+    font-weight: bold; font-size: 12px; color: #000000;
+    background: #D0D0D0;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
+#posOrderList { flex:1 1 auto; overflow-y:auto; font-size:12px; }
+
+/* ── Cart items ─────────────────────────────────────────────── */
+.pos-item {
+    display:flex; align-items:center; gap:6px;
+    padding:5px 8px; border-bottom:1px solid #C8C8C8;
+}
+.pos-item-info  { flex:1; min-width:0; }
+.pos-item-name  { font-weight:bold; color:#000000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+.pos-item-meta  { font-size:10px; color:#555555; margin-top:1px; }
+.pos-item-price { font-weight:bold; color:#003399; white-space:nowrap; min-width:54px; text-align:right; font-size:12px; }
+
+/* classic SAP "Cancel" button — flat, bevelled */
+.pos-cancel {
+    background: #D4D0C8;
+    border-top: 1px solid #FFFFFF;
+    border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #808080;
+    border-bottom: 1px solid #808080;
+    border-radius: 0;
+    color: #CC0000; font-size: 10px; font-weight: bold;
+    padding: 2px 8px; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+    font-family: inherit;
+}
+.pos-cancel:active {
+    border-top: 1px solid #808080; border-left: 1px solid #808080;
+    border-right: 1px solid #FFFFFF; border-bottom: 1px solid #FFFFFF;
+}
+
+/* ── Empty state ────────────────────────────────────────────── */
+.pos-empty      { padding:32px 20px; text-align:center; color:#808080; font-size:12px; line-height:1.6; }
+.pos-empty-icon { font-size:28px; margin-bottom:6px; }
+
+/* ── Order footer / totals ──────────────────────────────────── */
+#posOrderFooter {
+    flex:0 0 auto;
+    border-top: 2px solid #808080;
+    background: #ECECEC;
+}
+.pos-total-row  {
+    display:flex; justify-content:space-between;
+    padding:3px 8px; font-size:11px; color:#000000;
+    background: #D0D0D0; border-bottom:1px solid #C0C0C0;
+}
+.pos-total-grand {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 8px; background: #003399; color: #FFFFFF;
+    font-weight: bold; font-size: 13px;
+    border-top: 2px solid #001A66;
+}
+.pos-total-grand-amount { font-size: 18px; letter-spacing: 0; font-weight:bold; }
+
+/* ── SAP GUI-style buttons (bevelled, flat, Windows 3.1 classic) */
+.pos-btn {
+    background: #D4D0C8;
+    border-top: 1px solid #FFFFFF;
+    border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #808080;
+    border-bottom: 1px solid #808080;
+    border-radius: 0;
+    padding: 4px 10px; font-size: 11px; font-weight: bold;
+    cursor: pointer; display: flex; align-items: center; gap: 4px;
+    color: #000000; font-family: inherit;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
+.pos-btn:hover  { background: #E0DDD6; }
+.pos-btn:active {
+    border-top: 1px solid #808080; border-left: 1px solid #808080;
+    border-right: 1px solid #FFFFFF; border-bottom: 1px solid #FFFFFF;
+}
+
+.pos-btn-success        { color: #006400; border-color: #FFFFFF #808080 #808080 #FFFFFF; }
+.pos-btn-success:hover  { background: #E0DDD6; }
+.pos-btn-danger         { color: #CC0000; border-color: #FFFFFF #808080 #808080 #FFFFFF; }
+.pos-btn-danger:hover   { background: #E0DDD6; }
+.pos-btn-primary        { background: #003399; color: #FFFFFF; border-color: #0044CC #001A66 #001A66 #0044CC; }
+.pos-btn-primary:hover  { background: #0044CC; }
+.pos-btn-default        { color: #000000; }
+.pos-btn-new            { background: #006400; color: #FFFFFF; border-color: #008000 #003200 #003200 #008000; }
+.pos-btn-new:hover      { background: #007A00; }
+.pos-btn-analytics      { background: #6600CC; color: #FFFFFF; border-color: #8800FF #440088 #440088 #8800FF; }
+.pos-btn-analytics:hover{ background: #7700EE; }
+
+/* ── Theme switcher widget ──────────────────────────────────── */
+.theme-switcher select {
+    border-top: 1px solid #808080; border-left: 1px solid #808080;
+    border-right: 1px solid #FFFFFF; border-bottom: 1px solid #FFFFFF;
+    border-radius: 0;
+    padding: 3px 6px; font-size: 11px; background: #FFFFFF;
+    color: #000000; cursor: pointer; outline: none; font-family: inherit;
+}
+
+/* ── Analytics shared ───────────────────────────────────────── */
+#header {
+    background: #003399; border-bottom: 2px solid #001A66;
+    padding: 0 8px; height: 44px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 20;
+}
+#header h1 { margin:0; font-size:13px; font-weight:bold; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.3px; }
+#header .hdr-btns { display:flex; gap:4px; align-items:center; }
+
+.btn {
+    background: #D4D0C8;
+    border-top: 1px solid #FFFFFF;
+    border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #808080;
+    border-bottom: 1px solid #808080;
+    border-radius: 0; padding: 3px 10px;
+    font-size: 11px; font-weight: bold; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    color: #000000; font-family: inherit;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
+.btn:hover  { background: #E0DDD6; }
+.btn:active { border-top:1px solid #808080; border-left:1px solid #808080; border-right:1px solid #FFFFFF; border-bottom:1px solid #FFFFFF; }
+.btn-back         { color: #000000; }
+.btn-danger       { color: #CC0000; }
+.btn-export       { background:#006400; color:#FFFFFF; border-color:#008000 #003200 #003200 #008000; }
+.btn-export:hover { background:#007A00; }
+.btn-sales        { background:#003399; color:#FFFFFF; border-color:#0044CC #001A66 #001A66 #0044CC; }
+.btn-sales:hover  { background:#0044CC; }
+
+#filterBar {
+    background: #D0D0D0; border-bottom: 2px solid #808080;
+    padding: 6px 8px; display: flex; gap: 8px;
+    align-items: center; flex-wrap: wrap;
+}
+#filterBar label { font-size: 11px; color: #000000; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2px; }
+#filterBar input, #filterBar select {
+    border-top: 1px solid #808080; border-left: 1px solid #808080;
+    border-right: 1px solid #FFFFFF; border-bottom: 1px solid #FFFFFF;
+    border-radius: 0; padding: 2px 6px; font-size: 11px;
+    color: #000000; background: #FFFFFF; outline: none; font-family: inherit;
+}
+#filterBar input:focus, #filterBar select:focus { outline: 2px solid #003399; outline-offset: -1px; }
+.filter-group { display:flex; align-items:center; gap:4px; }
+
+#kpiStrip { display:flex; gap:4px; padding:8px; flex-wrap:wrap; background:#ECECEC; }
+.kpi-card {
+    background: #FFFFFF;
+    border-top: 1px solid #FFFFFF; border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+    border-radius: 0; padding: 8px 12px; flex:1 1 140px; min-width:120px;
+}
+.kpi-label { font-size:10px; color:#003399; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; border-bottom:1px solid #D0D0D0; padding-bottom:2px; }
+.kpi-value { font-size:20px; font-weight:bold; color:#000000; }
+.kpi-sub   { font-size:10px; color:#555555; margin-top:1px; }
+
+#chartsRow { display:flex; gap:4px; padding:0 8px 8px; flex-wrap:wrap; background:#ECECEC; }
+.chart-card {
+    background: #FFFFFF;
+    border-top: 1px solid #FFFFFF; border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+    border-radius: 0; padding: 8px; flex:1 1 280px; min-width:260px;
+}
+.chart-card h3 { margin:0 0 8px; font-size:11px; color:#003399; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #D0D0D0; padding-bottom:3px; }
+
+.bar-row   { display:flex; align-items:center; gap:6px; margin-bottom:5px; font-size:11px; cursor:default; }
+.bar-row:hover .bar-fill  { filter:brightness(1.15); }
+.bar-row:hover .bar-label,
+.bar-row:hover .bar-val,
+.bar-row:hover .bar-items { color:#003399; }
+.bar-label { width:110px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#000000; }
+.bar-track { flex:1; background:#D0D0D0; border-radius:0; height:12px; overflow:hidden; border:1px inset #808080; }
+.bar-fill  { height:100%; border-radius:0; background:#003399; transition:width .3s; }
+.bar-fill.purple { background:#6600CC; }
+.bar-fill.green  { background:#006400; }
+.bar-fill.orange { background:#CC4400; }
+.bar-val   { width:60px; text-align:right; color:#555555; flex-shrink:0; }
+.bar-items { width:56px; text-align:right; color:#808080; font-size:10px; flex-shrink:0; }
+
+#listSection    { padding:0 8px 8px; background:#ECECEC; }
+#listSection h2 { font-size:11px; font-weight:bold; margin:0 0 6px; color:#003399; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #003399; padding-bottom:3px; }
+#listToolbar    { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; align-items:center; }
+
+#txSearch, #itemSearch {
+    border-top:1px solid #808080; border-left:1px solid #808080;
+    border-right:1px solid #FFFFFF; border-bottom:1px solid #FFFFFF;
+    border-radius:0; padding:3px 8px; font-size:11px; flex:1 1 200px; outline:none;
+    background:#FFFFFF; color:#000000; font-family:inherit;
+}
+#txSearch:focus, #itemSearch:focus { outline:2px solid #003399; outline-offset:-1px; }
+#txSort, #itemSort { border-top:1px solid #808080; border-left:1px solid #808080; border-right:1px solid #FFFFFF; border-bottom:1px solid #FFFFFF; border-radius:0; padding:3px 6px; font-size:11px; background:#FFFFFF; color:#000000; font-family:inherit; }
+
+table { width:100%; border-collapse:collapse; background:#FFFFFF; border:1px solid #808080; border-radius:0; overflow:hidden; }
+thead th {
+    background: #D0D0D0;
+    border-bottom: 2px solid #808080; border-right: 1px solid #C0C0C0;
+    padding: 4px 8px; text-align: left; font-size: 11px;
+    font-weight: bold; color: #000000; white-space: nowrap; cursor: pointer; user-select: none;
+    text-transform: uppercase; letter-spacing: 0.2px;
+}
+thead th:hover  { background: #C8C8C8; }
+thead th.sorted { color: #003399; background: #C0CCDD; }
+thead th.sorted::after      { content: " ▲"; font-size: 9px; }
+thead th.sorted.desc::after { content: " ▼"; }
+tbody tr  { border-bottom: 1px solid #E0E0E0; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #E8F0FF; }
+tbody tr:nth-child(even) { background: #F5F5F5; }
+tbody tr:nth-child(even):hover { background: #E8F0FF; }
+tbody td  { padding: 4px 8px; font-size: 11px; vertical-align: middle; border-right: 1px solid #EEEEEE; }
+.mono { font-family: "Courier New", monospace; font-size: 11px; color: #555555; }
+.amt  { font-weight: bold; color: #003399; white-space: nowrap; }
+.pill      { display:inline-block; border-radius:0; padding:0 6px; font-size:10px; font-weight:bold; background:#D0D8F0; color:#003399; white-space:nowrap; border:1px solid #8899CC; }
+.pill-tax  { background:#FFF0C0; color:#884400; border-color:#CC9900; }
+.rank      { display:inline-block; width:20px; height:20px; line-height:20px; border-radius:0; background:#D0D0D0; color:#000000; font-size:10px; font-weight:bold; text-align:center; border:1px solid #808080; }
+.rank.top1 { background:#FFD700; color:#000000; border-color:#AA8800; }
+.rank.top2 { background:#C0C0C0; color:#000000; border-color:#808080; }
+.rank.top3 { background:#CD7F32; color:#FFFFFF; border-color:#8B5500; }
+.inline-bar      { height:4px; border-radius:0; background:#D0D0D0; margin-top:3px; overflow:hidden; }
+.inline-bar-fill { height:100%; border-radius:0; background:#003399; }
+.expand-btn       { background:none; border:none; cursor:pointer; color:#003399; font-size:11px; padding:0; font-family:inherit; font-weight:bold; }
+.expand-btn:hover { text-decoration:underline; }
+.tx-detail-row td        { background:#F5F5F5; padding:6px 12px 10px; }
+.tx-detail-row table     { border:1px solid #C0C0C0; background:#FFFFFF; }
+.tx-detail-row thead th  { background:#E0E0E0; font-size:10px; }
+.tx-detail-row tbody td  { font-size:11px; padding:3px 8px; }
+.empty      { text-align:center; padding:40px 20px; color:#808080; font-size:12px; line-height:1.6; }
+.empty-icon { font-size:32px; margin-bottom:8px; }
+
+#pagination  { display:flex; gap:4px; align-items:center; justify-content:flex-end; padding:6px 0 0; flex-wrap:wrap; background:#ECECEC; }
+.page-btn    { background:#D4D0C8; border-top:1px solid #FFFFFF; border-left:1px solid #FFFFFF; border-right:1px solid #808080; border-bottom:1px solid #808080; border-radius:0; padding:3px 8px; cursor:pointer; font-size:11px; color:#000000; font-family:inherit; }
+.page-btn:hover  { background:#E0DDD6; }
+.page-btn.active { background:#003399; color:#FFFFFF; border-color:#001A66 #0044CC #0044CC #001A66; }
+#pageInfo    { font-size:11px; color:#555555; padding:0 4px; }
+
+/* ── SAPUI5 tile tweaks ─────────────────────────────────────── */
+.posProductTile { cursor:pointer; transition:none; border-radius:0 !important; }
+.posProductTile:hover { box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #FFFFFF !important; }

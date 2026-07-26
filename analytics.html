@@ -4,138 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>POS Analytics</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; height: 100%; background: #f3f4f6;
-            font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-            font-size: 14px; color: #1f2328; }
-
-        /* ── Header ── */
-        #header {
-            background: #fff; border-bottom: 1px solid #e5e7eb;
-            padding: 0 20px; height: 48px;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 1px 4px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 20;
-        }
-        #header h1 { margin: 0; font-size: 16px; font-weight: 700; }
-        #header .hdr-btns { display: flex; gap: 8px; align-items: center; }
-        .btn {
-            border: none; border-radius: 6px; padding: 6px 13px;
-            font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex;
-            align-items: center; gap: 5px;
-        }
-        .btn-back { background: #f3f4f6; color: #1f2328; border: 1px solid #d1d5db; }
-        .btn-back:hover { background: #e5e7eb; }
-        .btn-danger { background: #fff; border: 1px solid #cf222e; color: #cf222e; }
-        .btn-danger:hover { background: #fff0ee; }
-        .btn-export { background: #16a34a; color: #fff; }
-        .btn-export:hover { background: #15803d; }
-
-        /* ── Filter bar ── */
-        #filterBar {
-            background: #fff; border-bottom: 1px solid #e5e7eb;
-            padding: 10px 20px; display: flex; gap: 12px; align-items: center;
-            flex-wrap: wrap;
-        }
-        #filterBar label { font-size: 12px; color: #57606a; font-weight: 600; }
-        #filterBar input, #filterBar select {
-            border: 1px solid #d1d5db; border-radius: 5px;
-            padding: 5px 9px; font-size: 13px; color: #1f2328; background: #fff;
-            outline: none;
-        }
-        #filterBar input:focus, #filterBar select:focus { border-color: #3b82d4; }
-        #filterBar .filter-group { display: flex; align-items: center; gap: 6px; }
-
-        /* ── KPI strip ── */
-        #kpiStrip {
-            display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap;
-        }
-        .kpi-card {
-            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
-            padding: 14px 20px; flex: 1 1 160px; min-width: 140px;
-        }
-        .kpi-label { font-size: 11px; color: #57606a; font-weight: 600;
-            text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
-        .kpi-value { font-size: 24px; font-weight: 700; color: #1f2328; }
-        .kpi-sub   { font-size: 11px; color: #57606a; margin-top: 2px; }
-
-        /* ── Charts row ── */
-        #chartsRow {
-            display: flex; gap: 12px; padding: 0 20px 16px; flex-wrap: wrap;
-        }
-        .chart-card {
-            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
-            padding: 16px; flex: 1 1 280px; min-width: 260px;
-        }
-        .chart-card h3 { margin: 0 0 12px; font-size: 13px; color: #57606a;
-            font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
-
-        /* simple bar chart */
-        .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
-        .bar-label { width: 110px; flex-shrink: 0; white-space: nowrap;
-            overflow: hidden; text-overflow: ellipsis; color: #1f2328; }
-        .bar-track { flex: 1; background: #f0f0f0; border-radius: 4px; height: 14px; overflow: hidden; }
-        .bar-fill   { height: 100%; border-radius: 4px; background: #3b82d4; transition: width .3s; }
-        .bar-fill.purple { background: #7c5cd8; }
-        .bar-fill.green  { background: #16a34a; }
-        .bar-val   { width: 60px; text-align: right; color: #57606a; flex-shrink: 0; }
-        .bar-items { width: 58px; text-align: right; color: #8c959f; font-size: 11px; flex-shrink: 0; }
-        .bar-row   { cursor: default; }
-        .bar-row:hover .bar-fill   { filter: brightness(1.12); }
-        .bar-row:hover .bar-label,
-        .bar-row:hover .bar-val,
-        .bar-row:hover .bar-items  { color: #1f2328; }
-
-        /* ── Transaction list ── */
-        #listSection { padding: 0 20px 20px; }
-        #listSection h2 { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #1f2328; }
-
-        /* search / sort toolbar */
-        #listToolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
-        #txSearch { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 10px;
-            font-size: 13px; flex: 1 1 200px; outline: none; }
-        #txSearch:focus { border-color: #3b82d4; }
-        #txSort { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 13px; }
-
-        table { width: 100%; border-collapse: collapse; background: #fff;
-            border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-        thead th { background: #f7f8fa; border-bottom: 2px solid #e5e7eb;
-            padding: 9px 12px; text-align: left; font-size: 12px;
-            font-weight: 600; color: #57606a; white-space: nowrap; cursor: pointer; }
-        thead th:hover { background: #eef0f3; }
-        thead th.sorted { color: #3b82d4; }
-        tbody tr { border-bottom: 1px solid #f0f0f0; }
-        tbody tr:last-child { border-bottom: none; }
-        tbody tr:hover { background: #f7f8fa; }
-        tbody td { padding: 8px 12px; font-size: 13px; vertical-align: top; }
-        .mono  { font-family: monospace; font-size: 12px; color: #57606a; }
-        .amt   { font-weight: 700; color: #1f2328; white-space: nowrap; }
-        .pill  { display: inline-block; border-radius: 12px; padding: 1px 8px;
-            font-size: 11px; font-weight: 600; background: #e8f4fd; color: #1d4ed8;
-            margin: 1px 2px; white-space: nowrap; }
-
-        /* expand row */
-        .expand-btn { background: none; border: none; cursor: pointer; color: #3b82d4;
-            font-size: 12px; padding: 0; font-weight: 600; }
-        .expand-btn:hover { text-decoration: underline; }
-        .tx-detail-row td { background: #f7f8fa; padding: 8px 16px 12px; }
-        .tx-detail-row table { border: none; background: transparent; }
-        .tx-detail-row thead th { background: transparent; font-size: 11px; }
-        .tx-detail-row tbody td { font-size: 12px; padding: 5px 10px; }
-
-        /* empty / no-data */
-        .empty { text-align: center; padding: 48px 20px; color: #8c959f; font-size: 13px; line-height: 1.6; }
-        .empty-icon { font-size: 36px; margin-bottom: 8px; }
-
-        /* pagination */
-        #pagination { display: flex; gap: 6px; align-items: center;
-            justify-content: flex-end; padding: 10px 0 0; flex-wrap: wrap; }
-        .page-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 5px;
-            padding: 5px 10px; cursor: pointer; font-size: 12px; }
-        .page-btn:hover { background: #f3f4f6; }
-        .page-btn.active { background: #3b82d4; color: #fff; border-color: #3b82d4; }
-        #pageInfo { font-size: 12px; color: #57606a; padding: 0 6px; }
-    </style>
+    <script src="css/theme-switcher.js"></script>
 </head>
 <body>
 
@@ -143,9 +12,10 @@
 <div id="header">
     <h1>&#x1F4CA; Sales Analytics</h1>
     <div class="hdr-btns">
+        <span class="theme-switcher"></span>
         <button class="btn btn-export" id="btnExportAll">&#x2B07; Export All JSON</button>
         <button class="btn btn-danger"  id="btnClearAll">&#x1F5D1; Clear Data</button>
-        <button class="btn btn-sales"   onclick="window.open('analytics-items.html','_blank')" style="background:#7c5cd8;color:#fff">&#x1F6D2; Item Analytics</button>
+        <button class="btn btn-sales"   onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
         <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
     </div>
 </div>
