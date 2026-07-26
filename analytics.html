@@ -94,18 +94,19 @@
 /* ──────────────────────────────────────────────────────────────── */
 /*  Data                                                           */
 /* ──────────────────────────────────────────────────────────────── */
-var TX_KEY   = "pos_transactions";
 var PAGE_SIZE = 15;
 
-var allTx    = [];   // raw from localStorage
+var allTx    = [];   // loaded from ./transactions/ via server
 var filtered = [];   // after filters
 var sortKey  = "date_desc";
 var currentPage = 1;
 var expandedId  = null;
 
+/** Fetch all transaction files from the server endpoint. */
 function loadTx() {
-    try { return JSON.parse(localStorage.getItem(TX_KEY) || "[]"); }
-    catch (e) { return []; }
+    return fetch("/transactions")
+        .then(function (res) { return res.json(); })
+        .catch(function () { return []; });
 }
 
 function eur(v) { return "\u20AC" + (+v || 0).toFixed(2); }
@@ -114,9 +115,11 @@ function eur(v) { return "\u20AC" + (+v || 0).toFixed(2); }
 /*  Boot                                                           */
 /* ──────────────────────────────────────────────────────────────── */
 function init() {
-    allTx = loadTx();
-    populateCategoryFilter();
-    applyFiltersAndRender();
+    loadTx().then(function (data) {
+        allTx = Array.isArray(data) ? data : [];
+        populateCategoryFilter();
+        applyFiltersAndRender();
+    });
 
     document.getElementById("btnApply").addEventListener("click", function () {
         currentPage = 1; applyFiltersAndRender();
@@ -442,14 +445,19 @@ function exportAll() {
 
 function clearAll() {
     if (!allTx.length) { alert("Nothing to clear."); return; }
-    if (!confirm("Delete ALL " + allTx.length + " stored transaction(s)? This cannot be undone.")) { return; }
-    localStorage.removeItem(TX_KEY);
-    allTx    = [];
-    filtered = [];
-    currentPage = 1;
-    expandedId  = null;
-    document.getElementById("fCat").innerHTML = '<option value="">All categories</option>';
-    applyFiltersAndRender();
+    if (!confirm("Delete ALL " + allTx.length + " transaction file(s) from ./transactions/? This cannot be undone.")) { return; }
+    fetch("/transactions", { method: "DELETE" })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!data.ok) { throw new Error(data.error || "server error"); }
+            allTx    = [];
+            filtered = [];
+            currentPage = 1;
+            expandedId  = null;
+            document.getElementById("fCat").innerHTML = '<option value="">All categories</option>';
+            applyFiltersAndRender();
+        })
+        .catch(function (err) { alert("Could not delete files: " + err.message); });
 }
 
 /* ── Bootstrap ── */

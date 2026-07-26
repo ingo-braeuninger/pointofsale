@@ -114,11 +114,10 @@
 "use strict";
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
-var TX_KEY   = "pos_transactions";
 var PAGE_SIZE = 20;
 
 /* ── State ──────────────────────────────────────────────────────────────── */
-var allTx       = [];   // raw transactions from localStorage
+var allTx       = [];   // loaded from ./transactions/ via server
 var allItems    = [];   // aggregated item rows (one per unique product)
 var filtered    = [];   // after filters applied
 var sortKey     = "qty_desc";
@@ -130,9 +129,11 @@ function eur(v)  { return "\u20AC" + (+v || 0).toFixed(2); }
 function pct(v)  { return Math.round((+v || 0) * 100) + "%"; }
 function num(v)  { return (+v || 0).toFixed(2); }
 
+/** Fetch all transaction files from the server endpoint. */
 function loadTx() {
-    try { return JSON.parse(localStorage.getItem(TX_KEY) || "[]"); }
-    catch (e) { return []; }
+    return fetch("/transactions")
+        .then(function (res) { return res.json(); })
+        .catch(function () { return []; });
 }
 
 /* ── Aggregate: build one row per unique product from raw transactions ──── */
@@ -173,9 +174,11 @@ function aggregateItems(transactions) {
 
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 function init() {
-    allTx = loadTx();
-    populateCategoryFilter();
-    applyFiltersAndRender();
+    loadTx().then(function (data) {
+        allTx = Array.isArray(data) ? data : [];
+        populateCategoryFilter();
+        applyFiltersAndRender();
+    });
 
     document.getElementById("btnApply").addEventListener("click", function () {
         currentPage = 1; applyFiltersAndRender();

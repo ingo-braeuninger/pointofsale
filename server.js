@@ -4,8 +4,10 @@
  * Opens at:  http://localhost:3000
  *
  * Routes
- *   GET  /*                   → serve static files from this directory
+ *   GET  /transactions        → return all transaction JSON files as an array
  *   POST /save-transaction    → write body as ./transactions/<id>.json
+ *   DELETE /transactions      → delete all transaction JSON files
+ *   GET  /*                   → serve static files from this directory
  */
 "use strict";
 
@@ -49,6 +51,45 @@ const server = http.createServer(async function (req, res) {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+    /* ── GET /transactions ─────────────────────────────────────── */
+    if (req.method === "GET" && req.url === "/transactions") {
+        try {
+            var files = fs.readdirSync(TX_DIR)
+                .filter(function (f) { return f.endsWith(".json"); })
+                .sort();                       // sort by filename = chronological
+            var txList = files.map(function (f) {
+                return JSON.parse(fs.readFileSync(path.join(TX_DIR, f), "utf8"));
+            });
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(txList));
+        } catch (err) {
+            console.error("GET /transactions error:", err.message);
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+        return;
+    }
+
+    /* ── DELETE /transactions ──────────────────────────────────── */
+    if (req.method === "DELETE" && req.url === "/transactions") {
+        try {
+            var removed = 0;
+            fs.readdirSync(TX_DIR)
+                .filter(function (f) { return f.endsWith(".json"); })
+                .forEach(function (f) {
+                    fs.unlinkSync(path.join(TX_DIR, f));
+                    removed++;
+                });
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: true, removed: removed }));
+        } catch (err) {
+            console.error("DELETE /transactions error:", err.message);
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+        return;
+    }
 
     /* ── POST /save-transaction ────────────────────────────────── */
     if (req.method === "POST" && req.url === "/save-transaction") {
