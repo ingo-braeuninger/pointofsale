@@ -33,10 +33,6 @@
         <div id="posHeaderBtns">
             <span class="theme-switcher"></span>
             <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-overview.html','_blank')">&#x1F4CB; Overview</button>
-            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Analytics</button>
-            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
-            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-time.html','_blank')">&#x23F0; Time Analytics</button>
-            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-period.html','_blank')">&#x1F4C5; Period Analytics</button>
             <button class="pos-btn pos-btn-danger"  id="btnClear"  onclick="posClear()">&#x1F5D1; Clear</button>
             <button class="pos-btn pos-btn-success" id="btnTotal"  onclick="posTotal()">&#x2713; Total</button>
         </div>
@@ -275,7 +271,6 @@ window.posTotal = function () {
     renderOrder();
     document.getElementById("posHeaderBtns").innerHTML =
         '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics-overview.html\',\'_blank\')">&#x1F4CB; Overview</button>' +
-        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics.html\',\'_blank\')">&#x1F4CA; Analytics</button>' +
         '<button class="pos-btn pos-btn-new"     onclick="posNewSale()">&#x2B; New Sale</button>' +
         '<button class="pos-btn pos-btn-default" onclick="posPrint()">&#x1F5A8; Print &amp; Save PDF</button>';
 };
@@ -296,7 +291,7 @@ window.posNewSale = function () {
     document.getElementById("posCatalogWrap").classList.remove("dimmed");
     renderOrder();
     document.getElementById("posHeaderBtns").innerHTML =
-        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics.html\',\'_blank\')">&#x1F4CA; Analytics</button>' +
+        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics-overview.html\',\'_blank\')">&#x1F4CB; Overview</button>' +
         '<button class="pos-btn pos-btn-danger"  id="btnClear" onclick="posClear()">&#x1F5D1; Clear</button>' +
         '<button class="pos-btn pos-btn-success" id="btnTotal" onclick="posTotal()">&#x2713; Total</button>';
 };
