@@ -74,13 +74,22 @@ html, body {
 .pos-item-price { font-weight:700; color:#0070F2; white-space:nowrap; min-width:56px; text-align:right; font-size:0.875rem; }
 
 /* Horizon "Negative" button */
-.pos-cancel {
-    background: #FFFFFF; border: 1px solid #BB0000; border-radius: 0.5rem;
-    color: #BB0000; font-size: 0.75rem; font-weight: 700;
-    padding: 0.25rem 0.625rem; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
-    font-family: inherit;
+/* ── Quantity controls ──────────────────────────────────────── */
+.pos-qty-ctrl  { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+.pos-qty-btn   {
+    width:1.5rem; height:1.5rem; border-radius:0.375rem; border:1px solid #c0c0c0;
+    background:#FAFAFA; color:#32363A; font-size:0.875rem; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    padding:0; line-height:1; font-family:inherit;
 }
-.pos-cancel:hover { background: #FFEAEA; border-color: #A50000; }
+.pos-qty-btn:hover  { background:#E8F1FF; border-color:#0070F2; color:#0070F2; }
+.pos-qty-val   { min-width:1.25rem; text-align:center; font-size:0.875rem; font-weight:700; color:#32363A; }
+.pos-qty-static { font-size:0.75rem; font-weight:700; color:#6A6D70; flex:0 0 auto; padding:0 0.25rem; }
+.pos-cancel    { width:1.5rem; height:1.5rem; border-radius:0.375rem; border:1px solid #BB0000;
+    background:#FFFFFF; color:#BB0000; font-size:0.8125rem; font-weight:700;
+    padding:0; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+    font-family:inherit; }
+.pos-cancel:hover  { background:#FFEAEA; border-color:#A50000; }
 
 /* ── Empty state ────────────────────────────────────────────── */
 .pos-empty      { padding: 2.5rem 1.25rem; text-align:center; color:#6A6D70; font-size:0.875rem; line-height:1.6; }

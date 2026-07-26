@@ -74,13 +74,22 @@ body::after {
 .pos-item-meta  { font-size:11px; color:#806000; margin-top:2px; }
 .pos-item-price { font-weight:400; color:#ffb000; white-space:nowrap; min-width:56px; text-align:right; text-shadow:0 0 6px #ffb00066; }
 
-.pos-cancel {
-    background:transparent; border:1px solid #ff4400; border-radius:0;
-    color:#ff4400; font-size:11px; font-weight:400;
-    padding:3px 9px; cursor:pointer; white-space:nowrap; flex:0 0 auto;
-    text-transform:uppercase; letter-spacing:1px;
+/* ── Quantity controls ──────────────────────────────────────── */
+.pos-qty-ctrl  { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+.pos-qty-btn   {
+    width:24px; height:24px; border-radius:0; border:1px solid #ffb000;
+    background:transparent; color:#ffb000; font-size:14px; font-weight:400;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    padding:0; line-height:1; font-family:inherit;
 }
-.pos-cancel:hover { background:rgba(255,68,0,.2); text-shadow:0 0 4px #ff4400; }
+.pos-qty-btn:hover  { background:rgba(255,176,0,.15); text-shadow:0 0 4px #ffb000; }
+.pos-qty-val   { min-width:20px; text-align:center; font-size:13px; font-weight:400; color:#ffcc00; letter-spacing:1px; }
+.pos-qty-static { font-size:12px; color:#806000; flex:0 0 auto; padding:0 4px; text-transform:uppercase; letter-spacing:1px; }
+.pos-cancel    { width:24px; height:24px; border-radius:0; border:1px solid #ff4400;
+    background:transparent; color:#ff4400; font-size:13px; font-weight:400;
+    padding:0; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+    font-family:inherit; }
+.pos-cancel:hover  { background:rgba(255,68,0,.2); text-shadow:0 0 4px #ff4400; }
 
 /* ── Empty state ────────────────────────────────────────────── */
 .pos-empty      { padding:40px 20px; text-align:center; color:#3d2e00; font-size:13px; line-height:1.6; }

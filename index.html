@@ -162,18 +162,21 @@ function renderOrder() {
         html +=
             '<div class="pos-item">' +
               '<div class="pos-item-info">' +
-                '<div class="pos-item-name">' +
-                  '<span style="background:#e8f4fd;color:#1d4ed8;border-radius:4px;' +
-                  'padding:1px 6px;font-size:12px;margin-right:6px;">' + item.quantity + '&times;</span>' +
-                  item.name +
-                '</div>' +
+                '<div class="pos-item-name">' + item.name + '</div>' +
                 '<div class="pos-item-meta">' + eur(item.price) + ' each &bull; ' +
                   item.category + ' &bull; ' + Math.round(item.taxRate * 100) + '% tax' +
                 '</div>' +
               '</div>' +
+              (!bFinished
+                ? '<div class="pos-qty-ctrl">' +
+                    '<button class="pos-qty-btn" onclick="posDecrement(' + idx + ')">&#x2212;</button>' +
+                    '<span class="pos-qty-val">' + item.quantity + '</span>' +
+                    '<button class="pos-qty-btn" onclick="posIncrement(' + idx + ')">&#x2B;</button>' +
+                  '</div>'
+                : '<span class="pos-qty-static">' + item.quantity + '&times;</span>') +
               '<div class="pos-item-price">' + eur(item.subtotal) + '</div>' +
               (!bFinished
-                ? '<button class="pos-cancel" onclick="posCancel(' + idx + ')">Cancel</button>'
+                ? '<button class="pos-cancel" onclick="posCancel(' + idx + ')" title="Remove item">&#x2715;</button>'
                 : '') +
             '</div>';
     });
@@ -198,9 +201,27 @@ function renderOrder() {
         '</div>';
 }
 
-/* ── Cancel one item row ────────────────────────────────────────────────── */
+/* ── Remove entire item row ─────────────────────────────────────────────── */
 window.posCancel = function (idx) {
     aItems.splice(idx, 1);
+    renderOrder();
+};
+
+/* ── Decrement quantity (removes row when reaching 0) ───────────────────── */
+window.posDecrement = function (idx) {
+    if (aItems[idx].quantity > 1) {
+        aItems[idx].quantity--;
+        aItems[idx].subtotal = aItems[idx].price * aItems[idx].quantity;
+    } else {
+        aItems.splice(idx, 1);
+    }
+    renderOrder();
+};
+
+/* ── Increment quantity ─────────────────────────────────────────────────── */
+window.posIncrement = function (idx) {
+    aItems[idx].quantity++;
+    aItems[idx].subtotal = aItems[idx].price * aItems[idx].quantity;
     renderOrder();
 };
 
