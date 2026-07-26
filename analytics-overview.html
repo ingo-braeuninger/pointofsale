@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POS · Transaction Overview</title>
+    <script src="css/theme-switcher.js"></script>
+    <style>
+        /* ── Archived row highlight ───────────────────── */
+        tr.row-archived td { color:#8c959f; font-style:italic; }
+        tr.row-archived .amt { color:#8c959f; font-weight:400; }
+
+        /* ── Status badge ────────────────────────────── */
+        .badge-active   { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#dcfce7; color:#15803d; }
+        .badge-archived { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#f1f5f9; color:#64748b; }
+        .badge-test     { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#fef9c3; color:#713f12; }
+
+        /* ── Group header row ────────────────────────── */
+        tr.group-header td {
+            background:#f0f4ff; font-weight:700; font-size:12px;
+            color:#3b5bdb; padding:5px 12px; border-bottom:1px solid #c7d2fe;
+        }
+
+        /* ── Column sort indicators ──────────────────── */
+        thead th { cursor:pointer; user-select:none; }
+        thead th.sorted-asc::after  { content:" ▲"; font-size:10px; color:#3b82d4; }
+        thead th.sorted-desc::after { content:" ▼"; font-size:10px; color:#3b82d4; }
+
+        /* ── Summary footer row ──────────────────────── */
+        #summaryRow td { background:#f7f8fa; font-weight:700; border-top:2px solid #e5e7eb; }
+
+        /* ── Group-by bar ────────────────────────────── */
+        .groupby-bar { display:flex; gap:6px; align-items:center; }
+        .groupby-btn {
+            border:1px solid #d1d5db; border-radius:6px; padding:4px 12px;
+            font-size:12px; font-weight:600; cursor:pointer;
+            background:#fff; color:#57606a; font-family:inherit;
+        }
+        .groupby-btn.active { background:#3b82d4; color:#fff; border-color:#3b82d4; }
+        .groupby-btn:hover:not(.active) { background:#f3f4f6; }
+
+        /* ── Quick stats strip ───────────────────────── */
+        #quickStats {
+            background:#fff; border-bottom:1px solid #e5e7eb;
+            padding:10px 20px; display:flex; gap:24px; flex-wrap:wrap; align-items:center;
+            font-size:12px; color:#57606a;
+        }
+        #quickStats strong { color:#1f2328; font-size:14px; }
+
+        /* ── Visible column toggle ───────────────────── */
+        .col-toggle-bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; color:#57606a; }
+        .col-toggle-btn {
+            border:1px solid #d1d5db; border-radius:4px; padding:2px 8px;
+            font-size:11px; cursor:pointer; background:#f7f8fa; color:#57606a;
+            font-family:inherit; font-weight:600;
+        }
+        .col-toggle-btn.on  { background:#e8f4fd; color:#1d4ed8; border-color:#93c5fd; }
+
+        /* ── Item detail sub-table ───────────────────── */
+        .tx-detail-row td { background:#f7f8fa; padding:8px 16px 12px; }
+        .tx-detail-row table { border:none; background:transparent; }
+        .tx-detail-row thead th { background:transparent; font-size:11px; }
+        .tx-detail-row tbody td { font-size:12px; padding:5px 10px; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>&#x1F4CB; Transaction Overview</h1>
+    <div class="hdr-btns">
+        <span class="theme-switcher"></span>
+        <button class="btn btn-export" id="btnExportCSV">&#x2B07; Export CSV</button>
+        <button class="btn btn-export" id="btnExportJSON">&#x2B07; Export JSON</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Charts</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Items</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-time.html','_blank')">&#x23F0; Time</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-period.html','_blank')">&#x1F4C5; Period</button>
+        <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
+    </div>
+</div>
+
+<!-- Filter bar -->
+<div id="filterBar">
+    <div class="filter-group">
+        <label for="fFrom">From</label>
+        <input type="date" id="fFrom" />
+    </div>
+    <div class="filter-group">
+        <label for="fTo">To</label>
+        <input type="date" id="fTo" />
+    </div>
+    <div class="filter-group">
+        <label for="fCat">Category</label>
+        <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <div class="filter-group">
+        <label for="fProduct">Product</label>
+        <select id="fProduct"><option value="">All products</option></select>
+    </div>
+    <div class="filter-group">
+        <label for="fMinTotal">Min Total (€)</label>
+        <input type="number" id="fMinTotal" min="0" step="0.01" style="width:90px" placeholder="0.00" />
+    </div>
+    <div class="filter-group">
+        <label for="fStatus">Status</label>
+        <select id="fStatus">
+            <option value="active">Active only</option>
+            <option value="all">All (incl. archived)</option>
+            <option value="archived">Archived only</option>
+            <option value="test">Test data only</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Search</label>
+        <input type="text" id="txSearch" style="width:180px" placeholder="TX ID or item…" />
+    </div>
+    <button class="btn btn-back" id="btnApply">&#x1F50D; Apply</button>
+    <button class="btn btn-back" id="btnReset">Reset</button>
+</div>
+
+<!-- Quick stats -->
+<div id="quickStats">
+    <span>Showing <strong id="qCount">—</strong> transactions</span>
+    <span>Revenue <strong id="qRev">—</strong></span>
+    <span>Tax <strong id="qTax">—</strong></span>
+    <span>Items sold <strong id="qItems">—</strong></span>
+    <span>Avg order <strong id="qAvg">—</strong></span>
+    <span style="margin-left:auto; display:flex; gap:6px; align-items:center;">
+        <label style="font-size:12px; color:#57606a;">Group by:</label>
+        <div class="groupby-bar" id="groupByBar">
+            <button class="groupby-btn active" data-group="none">None</button>
+            <button class="groupby-btn" data-group="date">Date</button>
+            <button class="groupby-btn" data-group="category">Category</button>
+            <button class="groupby-btn" data-group="status">Status</button>
+        </div>
+    </span>
+</div>
+
+<!-- KPI strip -->
+<div id="kpiStrip">
+    <div class="kpi-card"><div class="kpi-label">Transactions</div>
+        <div class="kpi-value" id="kTx">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="kRev">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Tax</div>
+        <div class="kpi-value" id="kTax">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Order Value</div>
+        <div class="kpi-value" id="kAvg">—</div>
+        <div class="kpi-sub"  id="kAvgSub"></div></div>
+    <div class="kpi-card"><div class="kpi-label">Items Sold</div>
+        <div class="kpi-value" id="kItems">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Active / Archived</div>
+        <div class="kpi-value" id="kSplit">—</div></div>
+</div>
+
+<!-- List section -->
+<div id="listSection">
+    <div id="listToolbar">
+        <div class="col-toggle-bar" id="colToggleBar">
+            <span style="font-size:12px; color:#57606a; font-weight:600;">Columns:</span>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+            <label style="font-size:12px; color:#57606a;">Sort:</label>
+            <select id="txSort">
+                <option value="date_desc">Newest first</option>
+                <option value="date_asc">Oldest first</option>
+                <option value="total_desc">Highest total</option>
+                <option value="total_asc">Lowest total</option>
+                <option value="items_desc">Most items</option>
+                <option value="tax_desc">Highest tax</option>
+            </select>
+            <label style="font-size:12px; color:#57606a;">Page size:</label>
+            <select id="pageSize">
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="0">All</option>
+            </select>
+        </div>
+    </div>
+    <div id="txTableWrap"></div>
+    <div id="pagination"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  State                                                          */
+/* ──────────────────────────────────────────────────────────────── */
+var allTx      = [];
+var filtered   = [];
+var sortKey    = "date_desc";
+var sortDir    = "desc";
+var currentPage = 1;
+var pageSize   = 15;
+var expandedId = null;
+var groupBy    = "none";
+
+/* column visibility: key → { label, visible } */
+var COLS = {
+    expand:    { label: "",           visible: true,  alwaysOn: true },
+    id:        { label: "TX ID",      visible: true  },
+    timestamp: { label: "Date/Time",  visible: true  },
+    status:    { label: "Status",     visible: true  },
+    categories:{ label: "Categories", visible: true  },
+    items:     { label: "Items",      visible: true  },
+    products:  { label: "Products",   visible: false },
+    subtotal:  { label: "Subtotal",   visible: true  },
+    tax:       { label: "Tax",        visible: true  },
+    total:     { label: "Total",      visible: true  }
+};
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Load                                                           */
+/* ──────────────────────────────────────────────────────────────── */
+function loadTx() {
+    return fetch("/transactions")
+        .then(function (r) { return r.json(); })
+        .catch(function ()  { return []; });
+}
+
+function eur(v) { return "\u20AC" + (+v || 0).toFixed(2); }
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Boot                                                           */
+/* ──────────────────────────────────────────────────────────────── */
+function init() {
+    loadTx().then(function (data) {
+        allTx = Array.isArray(data) ? data : [];
+        populateFilters();
+        buildColToggles();
+        applyFiltersAndRender();
+    });
+
+    document.getElementById("btnApply").addEventListener("click", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnReset").addEventListener("click", resetFilters);
+    document.getElementById("txSearch").addEventListener("input", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("txSort").addEventListener("change", function () {
+        sortKey = this.value; currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("pageSize").addEventListener("change", function () {
+        pageSize = parseInt(this.value, 10); currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
+    document.getElementById("btnExportJSON").addEventListener("click", exportJSON);
+
+    /* group-by buttons */
+    document.getElementById("groupByBar").addEventListener("click", function (e) {
+        var btn = e.target.closest(".groupby-btn");
+        if (!btn) { return; }
+        groupBy = btn.getAttribute("data-group");
+        document.querySelectorAll(".groupby-btn").forEach(function (b) {
+            b.classList.toggle("active", b === btn);
+        });
+        currentPage = 1; renderTable(); renderPagination();
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Populate filter dropdowns                                      */
+/* ──────────────────────────────────────────────────────────────── */
+function populateFilters() {
+    var cats     = {};
+    var products = {};
+    allTx.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) {
+            cats[i.category] = true;
+            products[i.name] = true;
+        });
+    });
+    var catSel  = document.getElementById("fCat");
+    var prodSel = document.getElementById("fProduct");
+    Object.keys(cats).sort().forEach(function (c) {
+        var o = document.createElement("option"); o.value = c; o.textContent = c; catSel.appendChild(o);
+    });
+    Object.keys(products).sort().forEach(function (p) {
+        var o = document.createElement("option"); o.value = p; o.textContent = p; prodSel.appendChild(o);
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Column toggle buttons                                          */
+/* ──────────────────────────────────────────────────────────────── */
+function buildColToggles() {
+    var bar = document.getElementById("colToggleBar");
+    Object.keys(COLS).forEach(function (key) {
+        var col = COLS[key];
+        if (col.alwaysOn || !col.label) { return; }
+        var btn = document.createElement("button");
+        btn.className = "col-toggle-btn" + (col.visible ? " on" : "");
+        btn.textContent = col.label;
+        btn.setAttribute("data-col", key);
+        btn.addEventListener("click", function () {
+            col.visible = !col.visible;
+            btn.classList.toggle("on", col.visible);
+            renderTable();
+        });
+        bar.appendChild(btn);
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Reset filters                                                  */
+/* ──────────────────────────────────────────────────────────────── */
+function resetFilters() {
+    document.getElementById("fFrom").value     = "";
+    document.getElementById("fTo").value       = "";
+    document.getElementById("fCat").value      = "";
+    document.getElementById("fProduct").value  = "";
+    document.getElementById("fMinTotal").value = "";
+    document.getElementById("fStatus").value   = "active";
+    document.getElementById("txSearch").value  = "";
+    sortKey = "date_desc";
+    document.getElementById("txSort").value = "date_desc";
+    currentPage = 1;
+    applyFiltersAndRender();
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Filter + sort                                                  */
+/* ──────────────────────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+    var fFrom    = document.getElementById("fFrom").value;
+    var fTo      = document.getElementById("fTo").value;
+    var fCat     = document.getElementById("fCat").value;
+    var fProduct = document.getElementById("fProduct").value;
+    var fMin     = parseFloat(document.getElementById("fMinTotal").value) || 0;
+    var fStatus  = document.getElementById("fStatus").value;
+    var fSearch  = (document.getElementById("txSearch").value || "").toLowerCase();
+
+    filtered = allTx.filter(function (tx) {
+        var d = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        if (fMin  && tx.total < fMin) { return false; }
+        if (fStatus === "active"   &&  tx._archived)  { return false; }
+        if (fStatus === "archived" && !tx._archived)  { return false; }
+        if (fStatus === "test"     && !tx._testing)   { return false; }
+        if (fCat) {
+            if (!(tx.items || []).some(function (i) { return i.category === fCat; })) { return false; }
+        }
+        if (fProduct) {
+            if (!(tx.items || []).some(function (i) { return i.name === fProduct; })) { return false; }
+        }
+        if (fSearch) {
+            var inId   = (tx.id || "").toLowerCase().includes(fSearch);
+            var inItem = (tx.items || []).some(function (i) {
+                return i.name.toLowerCase().includes(fSearch) || i.category.toLowerCase().includes(fSearch);
+            });
+            if (!inId && !inItem) { return false; }
+        }
+        return true;
+    });
+
+    sortFiltered();
+    renderKPIs();
+    renderQuickStats();
+    renderTable();
+    renderPagination();
+}
+
+function sortFiltered() {
+    filtered.sort(function (a, b) {
+        switch (sortKey) {
+            case "date_asc":    return a.timestamp < b.timestamp ? -1 : 1;
+            case "date_desc":   return a.timestamp > b.timestamp ? -1 : 1;
+            case "total_asc":   return a.total - b.total;
+            case "total_desc":  return b.total - a.total;
+            case "items_desc":  return itemCount(b) - itemCount(a);
+            case "tax_desc":    return (b.totalTax || 0) - (a.totalTax || 0);
+        }
+        return 0;
+    });
+}
+
+function itemCount(tx) {
+    return (tx.items || []).reduce(function (s, i) { return s + i.quantity; }, 0);
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  KPIs + quick stats                                             */
+/* ──────────────────────────────────────────────────────────────── */
+function renderKPIs() {
+    var n    = filtered.length;
+    var rev  = filtered.reduce(function (s, tx) { return s + tx.total; }, 0);
+    var tax  = filtered.reduce(function (s, tx) { return s + (tx.totalTax || 0); }, 0);
+    var itms = filtered.reduce(function (s, tx) { return s + itemCount(tx); }, 0);
+    var avg  = n ? rev / n : 0;
+    var arch = filtered.filter(function (tx) { return tx._archived; }).length;
+    var actv = n - arch;
+
+    document.getElementById("kTx").textContent    = n;
+    document.getElementById("kRev").textContent   = eur(rev);
+    document.getElementById("kTax").textContent   = eur(tax);
+    document.getElementById("kAvg").textContent   = eur(avg);
+    document.getElementById("kAvgSub").textContent = n ? "over " + n + " sale" + (n !== 1 ? "s" : "") : "";
+    document.getElementById("kItems").textContent = itms;
+    document.getElementById("kSplit").textContent = actv + " / " + arch;
+}
+
+function renderQuickStats() {
+    var n    = filtered.length;
+    var rev  = filtered.reduce(function (s, tx) { return s + tx.total; }, 0);
+    var tax  = filtered.reduce(function (s, tx) { return s + (tx.totalTax || 0); }, 0);
+    var itms = filtered.reduce(function (s, tx) { return s + itemCount(tx); }, 0);
+    document.getElementById("qCount").textContent = n;
+    document.getElementById("qRev").textContent   = eur(rev);
+    document.getElementById("qTax").textContent   = eur(tax);
+    document.getElementById("qItems").textContent = itms;
+    document.getElementById("qAvg").textContent   = n ? eur(rev / n) : eur(0);
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Table                                                          */
+/* ──────────────────────────────────────────────────────────────── */
+function visibleCols() {
+    return Object.keys(COLS).filter(function (k) { return COLS[k].visible; });
+}
+
+function renderTable() {
+    var wrap = document.getElementById("txTableWrap");
+
+    if (!filtered.length) {
+        wrap.innerHTML =
+            '<div class="empty">' +
+            '<div class="empty-icon">&#x1F4CB;</div>' +
+            (allTx.length ? 'No transactions match the current filters.' :
+             'No transactions recorded yet. Complete a sale in the POS to see it here.') +
+            '</div>';
+        return;
+    }
+
+    var ps    = pageSize || filtered.length;
+    var start = (currentPage - 1) * ps;
+    var page  = filtered.slice(start, start + ps);
+
+    /* ── Build table header ── */
+    var cols  = visibleCols();
+    var thead = "<thead><tr>" + cols.map(function (k) {
+        if (k === "expand") { return '<th style="width:28px"></th>'; }
+        var col   = COLS[k];
+        var align = (k === "items") ? ' style="text-align:center"' : (k === "subtotal" || k === "tax" || k === "total") ? ' style="text-align:right"' : "";
+        return '<th' + align + '>' + col.label + '</th>';
+    }).join("") + "</tr></thead>";
+
+    /* ── Group data ── */
+    var grouped = groupRows(page);
+
+    /* ── Summary totals ── */
+    var totalSubtotal = filtered.reduce(function (s, tx) { return s + (tx.subtotal || 0); }, 0);
+    var totalTax      = filtered.reduce(function (s, tx) { return s + (tx.totalTax || 0); }, 0);
+    var totalTotal    = filtered.reduce(function (s, tx) { return s + tx.total; }, 0);
+
+    /* ── Render rows ── */
+    var rows = grouped.map(function (entry) {
+        if (entry.isGroupHeader) {
+            return '<tr class="group-header"><td colspan="' + cols.length + '">' + entry.label + '</td></tr>';
+        }
+        var tx  = entry.tx;
+        var row = buildRow(tx, cols);
+        var det = (expandedId === tx.id) ? buildDetailRow(tx, cols.length) : "";
+        return row + det;
+    }).join("");
+
+    /* ── Summary row ── */
+    var summaryRow = '<tr id="summaryRow">' + cols.map(function (k) {
+        if (k === "expand")     { return "<td></td>"; }
+        if (k === "id")         { return '<td colspan="' + (cols.indexOf("timestamp") > -1 ? 1 : 1) + '" style="color:#57606a;font-size:12px">Totals (' + filtered.length + ')</td>'; }
+        if (k === "timestamp")  { return "<td></td>"; }
+        if (k === "status")     { return "<td></td>"; }
+        if (k === "categories") { return "<td></td>"; }
+        if (k === "items")      { return "<td></td>"; }
+        if (k === "products")   { return "<td></td>"; }
+        if (k === "subtotal")   { return '<td style="text-align:right" class="mono">' + eur(totalSubtotal) + '</td>'; }
+        if (k === "tax")        { return '<td style="text-align:right" class="mono">' + eur(totalTax) + '</td>'; }
+        if (k === "total")      { return '<td style="text-align:right" class="amt">' + eur(totalTotal) + '</td>'; }
+        return "<td></td>";
+    }).join("") + "</tr>";
+
+    wrap.innerHTML =
+        '<table>' + thead +
+        '<tbody>' + rows + summaryRow + '</tbody>' +
+        '</table>';
+
+    /* expand buttons */
+    wrap.querySelectorAll(".expand-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var id = this.getAttribute("data-txid");
+            expandedId = (expandedId === id) ? null : id;
+            renderTable(); renderPagination();
+        });
+    });
+}
+
+function buildRow(tx, cols) {
+    var dt      = tx.timestamp ? new Date(tx.timestamp).toLocaleString() : tx.id;
+    var cats    = [];
+    var prods   = [];
+    var qty     = 0;
+    (tx.items || []).forEach(function (i) {
+        if (!cats.includes(i.category)) { cats.push(i.category); }
+        if (!prods.includes(i.name))    { prods.push(i.name); }
+        qty += i.quantity;
+    });
+    var pillsCat  = cats.map(function (c) { return '<span class="pill">' + c + '</span>'; }).join(" ");
+    var pillsProd = prods.slice(0, 4).map(function (p) { return '<span class="pill">' + p + '</span>'; }).join(" ") +
+                    (prods.length > 4 ? ' <span class="pill" style="background:#f0f0f0;color:#57606a">+' + (prods.length - 4) + '</span>' : '');
+
+    var statusBadge = tx._archived
+        ? '<span class="badge-archived">Archived</span>'
+        : (tx._testing
+            ? '<span class="badge-test">Test</span>'
+            : '<span class="badge-active">Active</span>');
+
+    var isExp = expandedId === tx.id;
+    var rowCls = tx._archived ? ' class="row-archived"' : '';
+
+    var tds = cols.map(function (k) {
+        switch (k) {
+            case "expand":
+                return '<td><button class="expand-btn" data-txid="' + tx.id + '">' +
+                       (isExp ? '&#x25BC;' : '&#x25BA;') + '</button></td>';
+            case "id":
+                return '<td class="mono">' + tx.id + '</td>';
+            case "timestamp":
+                return '<td>' + dt + '</td>';
+            case "status":
+                return '<td>' + statusBadge + '</td>';
+            case "categories":
+                return '<td>' + pillsCat + '</td>';
+            case "items":
+                return '<td style="text-align:center">' + qty + '</td>';
+            case "products":
+                return '<td>' + pillsProd + '</td>';
+            case "subtotal":
+                return '<td style="text-align:right" class="mono">' + eur(tx.subtotal) + '</td>';
+            case "tax":
+                return '<td style="text-align:right" class="mono">' + eur(tx.totalTax) + '</td>';
+            case "total":
+                return '<td style="text-align:right" class="amt">' + eur(tx.total) + '</td>';
+            default:
+                return '<td></td>';
+        }
+    }).join("");
+    return '<tr' + rowCls + '>' + tds + '</tr>';
+}
+
+function buildDetailRow(tx, colCount) {
+    var itemRows = (tx.items || []).map(function (i) {
+        var taxAmt = i.taxAmount !== undefined ? i.taxAmount : i.subtotal * i.taxRate;
+        return '<tr>' +
+               '<td>' + i.name + '</td>' +
+               '<td>' + i.category + '</td>' +
+               '<td style="text-align:center">' + i.quantity + '</td>' +
+               '<td style="text-align:right">' + eur(i.price) + '</td>' +
+               '<td style="text-align:center">' + Math.round((i.taxRate || 0) * 100) + '%</td>' +
+               '<td style="text-align:right">' + eur(taxAmt) + '</td>' +
+               '<td style="text-align:right">' + eur(i.subtotal) + '</td>' +
+               '</tr>';
+    }).join("");
+
+    var taxRows = (tx.taxBreakdown || []).map(function (b) {
+        return '<tr style="color:#57606a">' +
+               '<td colspan="5" style="text-align:right;font-size:11px">' + b.label + '</td>' +
+               '<td style="text-align:right;font-size:11px">' + eur(b.amount) + '</td>' +
+               '<td></td></tr>';
+    }).join("");
+
+    return '<tr class="tx-detail-row"><td colspan="' + colCount + '">' +
+           '<table><thead><tr>' +
+           '<th>Item</th><th>Category</th><th style="text-align:center">Qty</th>' +
+           '<th style="text-align:right">Unit Price</th><th style="text-align:center">Tax%</th>' +
+           '<th style="text-align:right">Tax Amt</th><th style="text-align:right">Subtotal</th>' +
+           '</tr></thead><tbody>' + itemRows + taxRows + '</tbody></table>' +
+           '</td></tr>';
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Group-by logic                                                 */
+/* ──────────────────────────────────────────────────────────────── */
+function groupRows(page) {
+    if (groupBy === "none") {
+        return page.map(function (tx) { return { isGroupHeader: false, tx: tx }; });
+    }
+    var result  = [];
+    var lastKey = null;
+    page.forEach(function (tx) {
+        var key = getGroupKey(tx);
+        if (key !== lastKey) {
+            lastKey = key;
+            var count = filtered.filter(function (t) { return getGroupKey(t) === key; }).length;
+            result.push({ isGroupHeader: true, label: key + "  (" + count + " transaction" + (count !== 1 ? "s" : "") + ")" });
+        }
+        result.push({ isGroupHeader: false, tx: tx });
+    });
+    return result;
+}
+
+function getGroupKey(tx) {
+    if (groupBy === "date")     { return tx.timestamp ? tx.timestamp.slice(0, 10) : "(no date)"; }
+    if (groupBy === "category") {
+        var cats = [];
+        (tx.items || []).forEach(function (i) { if (!cats.includes(i.category)) { cats.push(i.category); } });
+        return cats.sort().join(", ") || "(no category)";
+    }
+    if (groupBy === "status") {
+        return tx._archived ? "Archived" : (tx._testing ? "Test" : "Active");
+    }
+    return "";
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Pagination                                                     */
+/* ──────────────────────────────────────────────────────────────── */
+function renderPagination() {
+    var ps         = pageSize || filtered.length;
+    var totalPages = Math.max(1, Math.ceil(filtered.length / ps));
+    var pg         = document.getElementById("pagination");
+    if (totalPages <= 1 || !pageSize) { pg.innerHTML = ""; return; }
+
+    var html = '<button class="page-btn" id="pgPrev">&laquo; Prev</button>';
+
+    /* window of page buttons — show up to 9 around current */
+    var start = Math.max(1, currentPage - 4);
+    var end   = Math.min(totalPages, start + 8);
+    start = Math.max(1, end - 8);
+
+    if (start > 1) { html += '<span id="pageInfo">1</span><span style="color:#8c959f; padding:0 4px">…</span>'; }
+    for (var p = start; p <= end; p++) {
+        html += '<button class="page-btn' + (p === currentPage ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+    }
+    if (end < totalPages) { html += '<span style="color:#8c959f; padding:0 4px">…</span><span id="pageInfo">' + totalPages + '</span>'; }
+
+    html += '<button class="page-btn" id="pgNext">Next &raquo;</button>';
+    html += '<span id="pageInfoMain" style="font-size:12px; color:#57606a; padding:0 8px">' +
+            currentPage + ' / ' + totalPages + ' &mdash; ' + filtered.length + ' records</span>';
+    pg.innerHTML = html;
+
+    document.getElementById("pgPrev").addEventListener("click", function () {
+        if (currentPage > 1) { currentPage--; expandedId = null; renderTable(); renderPagination(); }
+    });
+    document.getElementById("pgNext").addEventListener("click", function () {
+        if (currentPage < totalPages) { currentPage++; expandedId = null; renderTable(); renderPagination(); }
+    });
+    pg.querySelectorAll(".page-btn[data-page]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            currentPage = parseInt(this.getAttribute("data-page"), 10);
+            expandedId = null; renderTable(); renderPagination();
+        });
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Export                                                         */
+/* ──────────────────────────────────────────────────────────────── */
+function exportJSON() {
+    if (!filtered.length) { alert("No data to export."); return; }
+    var blob = new Blob([JSON.stringify(filtered, null, 2)], { type: "application/json" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_transactions_" + new Date().toISOString().slice(0, 10) + ".json";
+    a.href = url; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+function exportCSV() {
+    if (!filtered.length) { alert("No data to export."); return; }
+    var rows = [["TX ID","Timestamp","Status","Revenue","Subtotal","Tax","Items","Categories","Products"]];
+    filtered.forEach(function (tx) {
+        var cats  = [];
+        var prods = [];
+        var qty   = 0;
+        (tx.items || []).forEach(function (i) {
+            if (!cats.includes(i.category))  { cats.push(i.category); }
+            if (!prods.includes(i.name))     { prods.push(i.name); }
+            qty += i.quantity;
+        });
+        var status = tx._archived ? "Archived" : (tx._testing ? "Test" : "Active");
+        rows.push([
+            tx.id,
+            tx.timestamp,
+            status,
+            (tx.total || 0).toFixed(2),
+            (tx.subtotal || 0).toFixed(2),
+            (tx.totalTax || 0).toFixed(2),
+            qty,
+            '"' + cats.join(", ") + '"',
+            '"' + prods.join(", ") + '"'
+        ]);
+    });
+    var csv  = rows.map(function (r) { return r.join(","); }).join("\n");
+    var blob = new Blob([csv], { type: "text/csv" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_transactions_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.href = url; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+/* ── Bootstrap ── */
+init();
+</script>
+</body>
+</html>

@@ -1,5 +1,11 @@
-﻿# Ignore transaction JSON files written at runtime, but keep the folder itself
+# Ignore transaction JSON files written at runtime, but keep the folder itself
 transactions/*.json
 
 transactions/backup/
 
+transactions/testing-time/
+
+transactions/testing-period/
+
+
+transactions/receipts/*.html

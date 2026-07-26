@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POS · Period Analytics</title>
+    <script src="css/theme-switcher.js"></script>
+    <style>
+        /* mini SVG line-chart */
+        .sparkline { display:block; width:100%; height:60px; }
+        .spark-line { fill:none; stroke:#3b82d4; stroke-width:2; }
+        .spark-area { fill:rgba(59,130,212,.12); }
+        .spark-dot  { fill:#3b82d4; }
+
+        /* period toggle tabs */
+        .period-tabs { display:flex; gap:4px; }
+        .period-tab {
+            border:1px solid #d1d5db; border-radius:6px;
+            padding:5px 14px; font-size:12px; font-weight:600;
+            cursor:pointer; background:#fff; color:#57606a;
+            font-family:inherit;
+        }
+        .period-tab.active { background:#3b82d4; color:#fff; border-color:#3b82d4; }
+        .period-tab:hover:not(.active) { background:#f3f4f6; }
+
+        /* trend badge */
+        .trend-up   { color:#16a34a; font-size:11px; font-weight:700; }
+        .trend-down { color:#cf222e; font-size:11px; font-weight:700; }
+        .trend-flat { color:#57606a; font-size:11px; }
+
+        /* comparison bar (current vs prev period) */
+        .cmp-wrap { display:flex; gap:4px; align-items:center; font-size:11px; color:#57606a; }
+        .cmp-bar  { flex:1; height:8px; border-radius:4px; background:#f0f0f0; overflow:hidden; }
+        .cmp-fill-curr { height:100%; border-radius:4px; background:#3b82d4; }
+        .cmp-fill-prev { height:100%; border-radius:4px; background:#d1d5db; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>&#x1F4C5; Period Analytics</h1>
+    <div class="hdr-btns">
+        <span class="theme-switcher"></span>
+        <button class="btn btn-export" id="btnExportCSV">&#x2B07; Export CSV</button>
+        <button class="btn btn-sales" onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Overview</button>
+        <button class="btn btn-sales" onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
+        <button class="btn btn-sales" onclick="window.open('analytics-time.html','_blank')">&#x23F0; Time Analytics</button>
+        <button class="btn btn-sales" onclick="window.open('analytics-overview.html','_blank')">&#x1F4CB; Overview</button>
+        <button class="btn btn-back"  onclick="window.close()">&#x2190; Close</button>
+    </div>
+</div>
+
+<!-- Period selector + filter bar -->
+<div id="filterBar" style="flex-wrap:wrap;gap:12px;align-items:center;">
+    <div class="filter-group">
+        <label>Period</label>
+        <div class="period-tabs" id="periodTabs">
+            <button class="period-tab active" data-period="daily">Daily</button>
+            <button class="period-tab"        data-period="weekly">Weekly</button>
+            <button class="period-tab"        data-period="monthly">Monthly</button>
+            <button class="period-tab"        data-period="yearly">Yearly</button>
+        </div>
+    </div>
+    <div class="filter-group">
+        <label for="fFrom">From</label>
+        <input type="date" id="fFrom" />
+    </div>
+    <div class="filter-group">
+        <label for="fTo">To</label>
+        <input type="date" id="fTo" />
+    </div>
+    <div class="filter-group">
+        <label for="fCat">Category</label>
+        <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <button class="btn btn-back" id="btnApply">&#x1F50D; Apply</button>
+    <button class="btn btn-back" id="btnReset">Reset</button>
+</div>
+
+<!-- KPI strip -->
+<div id="kpiStrip">
+    <div class="kpi-card">
+        <div class="kpi-label">Periods</div>
+        <div class="kpi-value" id="kPeriods">—</div>
+        <div class="kpi-sub"  id="kPeriodsSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kRev">—</div>
+        <div class="kpi-sub"  id="kRevTrend"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value" id="kTx">—</div>
+        <div class="kpi-sub"  id="kTxTrend"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Best Period</div>
+        <div class="kpi-value" id="kBest" style="font-size:14px;line-height:1.4">—</div>
+        <div class="kpi-sub"  id="kBestSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Avg Revenue / Period</div>
+        <div class="kpi-value" id="kAvg">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Tax</div>
+        <div class="kpi-value" id="kTax">—</div>
+    </div>
+</div>
+
+<!-- Revenue trend chart -->
+<div id="chartsRow" style="flex-wrap:wrap;">
+    <div class="chart-card" style="flex:3 1 500px;min-width:300px;">
+        <h3 id="trendTitle">Revenue Trend</h3>
+        <svg id="svgTrend" class="sparkline" style="height:120px;width:100%"></svg>
+    </div>
+    <div class="chart-card" style="flex:1 1 260px;">
+        <h3>Transactions Trend</h3>
+        <svg id="svgTxTrend" class="sparkline" style="height:120px;width:100%"></svg>
+    </div>
+</div>
+
+<!-- Bar charts row -->
+<div id="chartsRow">
+    <div class="chart-card" style="flex:2 1 400px">
+        <h3 id="mainChartTitle">Revenue by Period</h3>
+        <div id="chartMain"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Top Category by Period</h3>
+        <div id="chartCat"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Period-over-Period Comparison</h3>
+        <div id="chartCmp"></div>
+    </div>
+</div>
+
+<!-- Detail table -->
+<div id="listSection">
+    <h2 id="listTitle">Period Breakdown</h2>
+    <div id="listToolbar">
+        <input type="text" id="itemSearch" placeholder="Search period label or category…" />
+        <select id="itemSort">
+            <option value="label_asc">Chronological</option>
+            <option value="rev_desc">Highest revenue</option>
+            <option value="tx_desc">Most transactions</option>
+            <option value="qty_desc">Most items sold</option>
+        </select>
+    </div>
+    <div id="itemTableWrap"></div>
+    <div id="pagination"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ── Constants ──────────────────────────────────────────────────────────── */
+var PAGE_SIZE  = 25;
+var MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var DOW_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+var allTx      = [];
+var filtered   = [];
+var rows       = [];
+var periodMode = "daily";
+var sortKey    = "label_asc";
+var currentPage = 1;
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function eur(v)  { return "\u20AC" + (+v || 0).toFixed(2); }
+function num(v)  { return (+v || 0).toFixed(2); }
+function pad(n)  { return String(n).padStart(2,"0"); }
+
+/* ── ISO week number (ISO 8601) ─────────────────────────────────────────── */
+function isoWeek(date) {
+    var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    var day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return { year: d.getUTCFullYear(), week: week };
+}
+
+/* key + label for a transaction under the current period mode */
+function periodKey(ts) {
+    var d = new Date(ts);
+    switch (periodMode) {
+        case "daily":
+            return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+        case "weekly": {
+            var iw = isoWeek(d);
+            return iw.year + "-W" + pad(iw.week);
+        }
+        case "monthly":
+            return d.getFullYear() + "-" + pad(d.getMonth()+1);
+        case "yearly":
+            return String(d.getFullYear());
+    }
+}
+
+function periodLabel(key) {
+    switch (periodMode) {
+        case "daily": {
+            var d = new Date(key + "T00:00:00");
+            return DOW_NAMES[d.getDay()] + " " + d.getDate() + " " +
+                   MONTH_NAMES[d.getMonth()] + " " + d.getFullYear();
+        }
+        case "weekly": {
+            var parts = key.split("-W");
+            return "Week " + parts[1] + " / " + parts[0];
+        }
+        case "monthly": {
+            var mp = key.split("-");
+            return MONTH_NAMES[parseInt(mp[1],10)-1] + " " + mp[0];
+        }
+        case "yearly":
+            return key;
+    }
+}
+
+/* ── Load ───────────────────────────────────────────────────────────────── */
+function loadTx() {
+    return fetch("/transactions").then(function(r){return r.json();}).catch(function(){return [];});
+}
+
+function init() {
+    loadTx().then(function(data) {
+        allTx = Array.isArray(data) ? data : [];
+        populateCategoryFilter();
+        setDefaultDateRange();
+        applyFiltersAndRender();
+    });
+
+    document.getElementById("periodTabs").addEventListener("click", function(e) {
+        var btn = e.target.closest(".period-tab");
+        if (!btn) { return; }
+        document.querySelectorAll(".period-tab").forEach(function(b){ b.classList.remove("active"); });
+        btn.classList.add("active");
+        periodMode = btn.dataset.period;
+        sortKey = "label_asc";
+        document.getElementById("itemSort").value = sortKey;
+        currentPage = 1;
+        applyFiltersAndRender();
+    });
+    document.getElementById("btnApply").addEventListener("click", function(){ currentPage=1; applyFiltersAndRender(); });
+    document.getElementById("btnReset").addEventListener("click", resetFilters);
+    document.getElementById("itemSearch").addEventListener("input", function(){ currentPage=1; renderTable(); renderPagination(); });
+    document.getElementById("itemSort").addEventListener("change", function(){
+        sortKey = this.value; currentPage=1; sortRows(); renderTable(); renderPagination();
+    });
+    document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
+}
+
+function populateCategoryFilter() {
+    var cats = {};
+    allTx.forEach(function(tx){ (tx.items||[]).forEach(function(i){ cats[i.category]=true; }); });
+    var sel = document.getElementById("fCat");
+    Object.keys(cats).sort().forEach(function(c){
+        var o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o);
+    });
+}
+
+/* Set default date range to match the available data */
+function setDefaultDateRange() {
+    if (!allTx.length) { return; }
+    var dates = allTx.map(function(tx){ return tx.timestamp ? tx.timestamp.slice(0,10) : null; })
+                     .filter(Boolean).sort();
+    document.getElementById("fFrom").value = dates[0];
+    document.getElementById("fTo").value   = dates[dates.length-1];
+}
+
+function resetFilters() {
+    document.getElementById("fCat").value = "";
+    document.getElementById("itemSearch").value = "";
+    sortKey = "label_asc";
+    document.getElementById("itemSort").value = sortKey;
+    currentPage = 1;
+    setDefaultDateRange();
+    applyFiltersAndRender();
+}
+
+/* ── Filter ─────────────────────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+    var fFrom = document.getElementById("fFrom").value;
+    var fTo   = document.getElementById("fTo").value;
+    var fCat  = document.getElementById("fCat").value;
+
+    filtered = allTx.filter(function(tx) {
+        var d = tx.timestamp ? tx.timestamp.slice(0,10) : "";
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        if (fCat) {
+            var has = (tx.items||[]).some(function(i){ return i.category===fCat; });
+            if (!has) { return false; }
+        }
+        return true;
+    });
+
+    aggregate();
+    sortRows();
+    renderKPIs();
+    renderTrendCharts();
+    renderBarCharts();
+    renderTable();
+    renderPagination();
+}
+
+/* ── Aggregate ──────────────────────────────────────────────────────────── */
+function aggregate() {
+    var map = {};
+    filtered.forEach(function(tx) {
+        if (!tx.timestamp) { return; }
+        var key = periodKey(tx.timestamp);
+        if (!map[key]) {
+            map[key] = { key:key, label:periodLabel(key),
+                         txCount:0, revenue:0, tax:0, qty:0,
+                         categories:{}, items:{} };
+        }
+        var r = map[key];
+        r.txCount++;
+        r.revenue += tx.total || 0;
+        r.tax     += tx.totalTax || 0;
+        (tx.items||[]).forEach(function(i) {
+            r.qty += i.quantity;
+            r.categories[i.category] = (r.categories[i.category]||0) + i.subtotal;
+            r.items[i.name]          = (r.items[i.name]||0) + i.quantity;
+        });
+    });
+
+    rows = Object.values(map).sort(function(a,b){ return a.key.localeCompare(b.key); });
+}
+
+function sortRows() {
+    rows.sort(function(a,b) {
+        switch(sortKey) {
+            case "rev_desc":   return b.revenue - a.revenue;
+            case "tx_desc":    return b.txCount - a.txCount;
+            case "qty_desc":   return b.qty - a.qty;
+            default:           return a.key.localeCompare(b.key);
+        }
+    });
+}
+
+/* ── KPIs ───────────────────────────────────────────────────────────────── */
+function renderKPIs() {
+    var totalRev = rows.reduce(function(s,r){ return s+r.revenue; },0);
+    var totalTax = rows.reduce(function(s,r){ return s+r.tax; },0);
+    var totalTx  = rows.reduce(function(s,r){ return s+r.txCount; },0);
+    var avg      = rows.length ? totalRev/rows.length : 0;
+    var best     = rows.reduce(function(p,r){ return (!p||r.revenue>p.revenue)?r:p; }, null);
+
+    /* period-over-period trend: compare last half vs first half */
+    function trendStr(arr, field) {
+        if (arr.length < 2) { return ""; }
+        var mid   = Math.floor(arr.length/2);
+        var first = arr.slice(0,mid).reduce(function(s,r){ return s+r[field]; },0);
+        var last  = arr.slice(mid).reduce(function(s,r){ return s+r[field]; },0);
+        if (first === 0) { return ""; }
+        var pct = ((last-first)/first*100).toFixed(1);
+        var sign = pct >= 0 ? "▲ +" : "▼ ";
+        var cls  = pct >= 0 ? "trend-up" : "trend-down";
+        return '<span class="'+cls+'">'+sign+pct+'% vs prior half</span>';
+    }
+
+    var chronoRows = rows.slice().sort(function(a,b){ return a.key.localeCompare(b.key); });
+
+    document.getElementById("kPeriods").textContent  = rows.length;
+    document.getElementById("kPeriodsSub").textContent = periodMode.charAt(0).toUpperCase()+periodMode.slice(1)+" view";
+    document.getElementById("kRev").textContent      = eur(totalRev);
+    document.getElementById("kRevTrend").innerHTML   = trendStr(chronoRows,"revenue");
+    document.getElementById("kTx").textContent       = totalTx;
+    document.getElementById("kTxTrend").innerHTML    = trendStr(chronoRows,"txCount");
+    document.getElementById("kBest").textContent     = best ? best.label : "—";
+    document.getElementById("kBestSub").textContent  = best ? eur(best.revenue)+" · "+best.txCount+" tx" : "";
+    document.getElementById("kAvg").textContent      = eur(avg);
+    document.getElementById("kTax").textContent      = eur(totalTax);
+}
+
+/* ── SVG trend sparklines ───────────────────────────────────────────────── */
+function drawSparkline(svgId, data, colorClass) {
+    var svg = document.getElementById(svgId);
+    if (!svg) { return; }
+    var W = svg.clientWidth || svg.parentElement.clientWidth || 600;
+    var H = 110;
+    svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    svg.setAttribute("preserveAspectRatio","none");
+
+    if (!data.length) { svg.innerHTML=""; return; }
+
+    var min = data.reduce(function(m,v){ return Math.min(m,v); }, Infinity);
+    var max = data.reduce(function(m,v){ return Math.max(m,v); }, -Infinity);
+    if (max === min) { max = min + 1; }
+
+    var pad = 8;
+    function px(i) { return data.length===1 ? W/2 : pad + i*(W-2*pad)/(data.length-1); }
+    function py(v) { return H - pad - (v-min)/(max-min)*(H-2*pad); }
+
+    /* area */
+    var areaPoints = "M"+px(0)+","+H+" ";
+    data.forEach(function(v,i){ areaPoints += "L"+px(i)+","+py(v)+" "; });
+    areaPoints += "L"+px(data.length-1)+","+H+" Z";
+
+    /* line */
+    var linePoints = data.map(function(v,i){ return (i===0?"M":"L")+px(i)+","+py(v); }).join(" ");
+
+    /* x-axis labels — show ~6 evenly spaced */
+    var step = Math.max(1, Math.floor(data.length/6));
+    var labels = "";
+    for (var i=0; i<data.length; i+=step) {
+        labels += '<text x="'+px(i)+'" y="'+(H-1)+'" text-anchor="middle" '+
+                  'font-size="8" fill="#9ca3af">'+i+'</text>';
+    }
+
+    var stroke = colorClass === "green" ? "#16a34a" : colorClass === "purple" ? "#7c5cd8" : "#3b82d4";
+    var fill   = colorClass === "green" ? "rgba(22,163,74,.10)" : colorClass === "purple" ? "rgba(124,92,216,.10)" : "rgba(59,130,212,.10)";
+
+    svg.innerHTML =
+        '<path class="spark-area" d="'+areaPoints+'" fill="'+fill+'"/>' +
+        '<path class="spark-line" d="'+linePoints+'" stroke="'+stroke+'" stroke-width="2" fill="none"/>' +
+        data.map(function(v,i){
+            return '<circle cx="'+px(i)+'" cy="'+py(v)+'" r="3" fill="'+stroke+'" opacity="0.7">' +
+                   '<title>'+eur(v)+'</title></circle>';
+        }).join("") +
+        labels;
+}
+
+function renderTrendCharts() {
+    var chronoRows = rows.slice().sort(function(a,b){ return a.key.localeCompare(b.key); });
+    var revData = chronoRows.map(function(r){ return r.revenue; });
+    var txData  = chronoRows.map(function(r){ return r.txCount; });
+    var titles  = { daily:"Daily", weekly:"Weekly", monthly:"Monthly", yearly:"Yearly" };
+    document.getElementById("trendTitle").textContent = titles[periodMode]+" Revenue Trend";
+    drawSparkline("svgTrend",   revData, "");
+    drawSparkline("svgTxTrend", txData,  "purple");
+}
+
+/* ── Bar charts ─────────────────────────────────────────────────────────── */
+function barChart(containerId, items, colorClass) {
+    colorClass = colorClass||"";
+    var max = items.reduce(function(m,r){ return Math.max(m,r.value); },0)||1;
+    var html = items.map(function(r) {
+        var pct = (r.value/max*100).toFixed(1);
+        var tip = r.label+" | "+r.display+(r.sub?" | "+r.sub:"");
+        return '<div class="bar-row" title="'+tip+'">' +
+               '<div class="bar-label">'+r.label+'</div>' +
+               '<div class="bar-track"><div class="bar-fill '+colorClass+'" style="width:'+pct+'%"></div></div>' +
+               '<div class="bar-val">'+r.display+'</div>' +
+               (r.sub?'<div class="bar-items">'+r.sub+'</div>':'') +
+               '</div>';
+    }).join("");
+    document.getElementById(containerId).innerHTML = html||'<div style="color:#8c959f;font-size:12px">No data</div>';
+}
+
+function renderBarCharts() {
+    var titles = { daily:"Daily", weekly:"Weekly", monthly:"Monthly", yearly:"Yearly" };
+    document.getElementById("mainChartTitle").textContent = "Revenue by "+titles[periodMode];
+
+    /* revenue by period (top 15 for readability) */
+    var chronoRows = rows.slice().sort(function(a,b){ return a.key.localeCompare(b.key); });
+    var topRev = chronoRows.slice(-15);
+    barChart("chartMain", topRev.map(function(r){
+        return { label:r.label.split(" ").slice(-2).join(" "), value:r.revenue,
+                 display:eur(r.revenue), sub:r.txCount+" tx" };
+    }), "");
+
+    /* top category per period (most recent 10) */
+    var catRows = chronoRows.slice(-10).map(function(r) {
+        var topCat = "—", topVal = 0;
+        Object.keys(r.categories).forEach(function(c){
+            if (r.categories[c] > topVal) { topVal=r.categories[c]; topCat=c; }
+        });
+        return { label:r.label.split(" ").slice(-2).join(" "), value:topVal,
+                 display:topCat, sub:eur(topVal) };
+    });
+    barChart("chartCat", catRows, "green");
+
+    /* period-over-period: current vs previous same-length window */
+    if (chronoRows.length >= 2) {
+        var half     = Math.floor(chronoRows.length/2);
+        var prevRows = chronoRows.slice(0, half);
+        var currRows = chronoRows.slice(chronoRows.length-half);
+        var maxVal   = Math.max(
+            prevRows.reduce(function(s,r){ return s+r.revenue; },0),
+            currRows.reduce(function(s,r){ return s+r.revenue; },0)
+        ) || 1;
+        var prevRev = prevRows.reduce(function(s,r){ return s+r.revenue; },0);
+        var currRev = currRows.reduce(function(s,r){ return s+r.revenue; },0);
+        var prevTx  = prevRows.reduce(function(s,r){ return s+r.txCount; },0);
+        var currTx  = currRows.reduce(function(s,r){ return s+r.txCount; },0);
+        var cmpHtml =
+            '<div class="bar-row" title="Current period revenue vs previous">' +
+            '<div class="bar-label">Rev (curr)</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:'+(currRev/maxVal*100).toFixed(1)+'%"></div></div>' +
+            '<div class="bar-val">'+eur(currRev)+'</div></div>' +
+            '<div class="bar-row" title="Previous period revenue">' +
+            '<div class="bar-label">Rev (prev)</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:'+(prevRev/maxVal*100).toFixed(1)+'%;background:#d1d5db"></div></div>' +
+            '<div class="bar-val">'+eur(prevRev)+'</div></div>' +
+            '<div class="bar-row">' +
+            '<div class="bar-label">Tx (curr)</div>' +
+            '<div class="bar-track"><div class="bar-fill purple" style="width:'+(currTx/Math.max(currTx,prevTx,1)*100).toFixed(1)+'%"></div></div>' +
+            '<div class="bar-val">'+currTx+'</div></div>' +
+            '<div class="bar-row">' +
+            '<div class="bar-label">Tx (prev)</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:'+(prevTx/Math.max(currTx,prevTx,1)*100).toFixed(1)+'%;background:#d1d5db"></div></div>' +
+            '<div class="bar-val">'+prevTx+'</div></div>';
+        document.getElementById("chartCmp").innerHTML = cmpHtml;
+    } else {
+        document.getElementById("chartCmp").innerHTML = '<div style="color:#8c959f;font-size:12px">Not enough periods for comparison</div>';
+    }
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+function renderTable() {
+    var wrap    = document.getElementById("itemTableWrap");
+    var fSearch = (document.getElementById("itemSearch").value||"").toLowerCase();
+    var titles  = { daily:"Day", weekly:"Week", monthly:"Month", yearly:"Year" };
+    document.getElementById("listTitle").textContent = titles[periodMode]+" Breakdown";
+
+    var display = rows.filter(function(r) {
+        if (!fSearch) { return true; }
+        return r.label.toLowerCase().includes(fSearch) ||
+               Object.keys(r.categories).some(function(c){ return c.toLowerCase().includes(fSearch); });
+    });
+
+    if (!display.length) {
+        wrap.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4C5;</div>' +
+            (allTx.length ? 'No data for the current filters.' :
+             'No transactions yet. Run the generator or complete a sale.') +
+            '</div>';
+        return;
+    }
+
+    var totalRev = rows.reduce(function(s,r){ return s+r.revenue; },0) || 1;
+    var maxRev   = rows.reduce(function(m,r){ return Math.max(m,r.revenue); },0) || 1;
+    var start    = (currentPage-1)*PAGE_SIZE;
+    var page     = display.slice(start, start+PAGE_SIZE);
+
+    var thead =
+        '<thead><tr>' +
+        '<th>'+titles[periodMode]+'</th>' +
+        '<th style="text-align:right">Transactions</th>' +
+        '<th style="text-align:right">Items Sold</th>' +
+        '<th>Top Category</th>' +
+        '<th>Top Product</th>' +
+        '<th style="text-align:right">Revenue</th>' +
+        '<th style="text-align:right">Avg / Tx</th>' +
+        '<th style="text-align:right">Tax</th>' +
+        '<th>Share</th>' +
+        '</tr></thead>';
+
+    var tbody = page.map(function(r) {
+        var topCat = "—", topCatVal = 0;
+        Object.keys(r.categories).forEach(function(c){
+            if (r.categories[c]>topCatVal){ topCatVal=r.categories[c]; topCat=c; }
+        });
+        var topItem = "—", topItemQty = 0;
+        Object.keys(r.items).forEach(function(n){
+            if (r.items[n]>topItemQty){ topItemQty=r.items[n]; topItem=n; }
+        });
+        var avg      = r.txCount ? r.revenue/r.txCount : 0;
+        var shareW   = Math.round(r.revenue/maxRev*100);
+        var sharePct = (r.revenue/totalRev*100).toFixed(1);
+
+        /* trend vs previous row if sorted chronologically */
+        var trendHtml = "";
+        var sortedIdx = rows.slice().sort(function(a,b){ return a.key.localeCompare(b.key); })
+                            .findIndex(function(x){ return x.key===r.key; });
+        if (sortKey==="label_asc" && sortedIdx > 0) {
+            var prev = rows.slice().sort(function(a,b){ return a.key.localeCompare(b.key); })[sortedIdx-1];
+            if (prev && prev.revenue > 0) {
+                var diff = ((r.revenue - prev.revenue)/prev.revenue*100).toFixed(1);
+                trendHtml = diff>=0
+                    ? '<span class="trend-up">▲ +'+diff+'%</span>'
+                    : '<span class="trend-down">▼ '+diff+'%</span>';
+            }
+        }
+
+        return '<tr>' +
+            '<td><strong>'+r.label+'</strong>'+
+                (trendHtml?' <span style="margin-left:4px">'+trendHtml+'</span>':'')+
+            '</td>' +
+            '<td style="text-align:right"><strong>'+r.txCount+'</strong></td>' +
+            '<td style="text-align:right">'+r.qty+'</td>' +
+            '<td><span class="pill">'+topCat+'</span></td>' +
+            '<td><span style="font-size:12px">'+topItem+'</span>' +
+                (topItemQty?'<span style="font-size:10px;color:#57606a;margin-left:3px">×'+topItemQty+'</span>':'')+
+            '</td>' +
+            '<td style="text-align:right" class="amt">'+eur(r.revenue)+'</td>' +
+            '<td style="text-align:right" class="mono">'+eur(avg)+'</td>' +
+            '<td style="text-align:right" class="mono">'+eur(r.tax)+'</td>' +
+            '<td style="min-width:90px">' +
+                '<div style="display:flex;align-items:center;gap:4px">' +
+                '<div class="bar-track" style="flex:1;height:8px">' +
+                  '<div class="bar-fill" style="width:'+shareW+'%"></div>' +
+                '</div>' +
+                '<span style="font-size:10px;color:#57606a;white-space:nowrap">'+sharePct+'%</span>' +
+                '</div>' +
+            '</td>' +
+            '</tr>';
+    }).join("");
+
+    wrap.innerHTML = '<table>'+thead+'<tbody>'+tbody+'</tbody></table>';
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+function renderPagination() {
+    var fSearch = (document.getElementById("itemSearch").value||"").toLowerCase();
+    var display = rows.filter(function(r){
+        if (!fSearch){ return true; }
+        return r.label.toLowerCase().includes(fSearch)||
+               Object.keys(r.categories).some(function(c){ return c.toLowerCase().includes(fSearch); });
+    });
+    var totalPages = Math.max(1, Math.ceil(display.length/PAGE_SIZE));
+    var pg = document.getElementById("pagination");
+    if (totalPages<=1){ pg.innerHTML=""; return; }
+    pg.innerHTML =
+        '<button class="page-btn" id="pgPrev">&laquo; Prev</button>' +
+        '<span id="pageInfo">'+currentPage+' / '+totalPages+'</span>' +
+        '<button class="page-btn" id="pgNext">Next &raquo;</button>';
+    document.getElementById("pgPrev").addEventListener("click",function(){
+        if(currentPage>1){ currentPage--; renderTable(); renderPagination(); }
+    });
+    document.getElementById("pgNext").addEventListener("click",function(){
+        if(currentPage<totalPages){ currentPage++; renderTable(); renderPagination(); }
+    });
+}
+
+/* ── Export CSV ─────────────────────────────────────────────────────────── */
+function exportCSV() {
+    if (!rows.length){ alert("No data to export."); return; }
+    var header = ["Period","Transactions","Items Sold","Revenue","Tax","Avg/Tx","Top Category","Top Product"].join(",");
+    var lines  = rows.map(function(r){
+        var topCat="—",topCatVal=0;
+        Object.keys(r.categories).forEach(function(c){ if(r.categories[c]>topCatVal){ topCatVal=r.categories[c]; topCat=c; } });
+        var topItem="—",topItemQty=0;
+        Object.keys(r.items).forEach(function(n){ if(r.items[n]>topItemQty){ topItemQty=r.items[n]; topItem=n; } });
+        function q(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }
+        var avg = r.txCount ? r.revenue/r.txCount : 0;
+        return [q(r.label),r.txCount,r.qty,num(r.revenue),num(r.tax),num(avg),q(topCat),q(topItem)].join(",");
+    });
+    var csv  = [header].concat(lines).join("\n");
+    var blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_period_analytics_"+periodMode+"_"+new Date().toISOString().slice(0,10)+".csv";
+    a.href=url; a.style.display="none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1000);
+}
+
+/* ── Bootstrap ── */
+init();
+</script>
+</body>
+</html>

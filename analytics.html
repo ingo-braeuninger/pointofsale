@@ -16,6 +16,9 @@
         <button class="btn btn-export" id="btnExportAll">&#x2B07; Export All JSON</button>
         <button class="btn btn-danger"  id="btnClearAll">&#x1F5D1; Clear Data</button>
         <button class="btn btn-sales"   onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
+        <button class="btn btn-sales"   onclick="window.open('analytics-time.html','_blank')">&#x23F0; Time Analytics</button>
+        <button class="btn btn-sales"   onclick="window.open('analytics-period.html','_blank')">&#x1F4C5; Period Analytics</button>
+        <button class="btn btn-sales"   onclick="window.open('analytics-overview.html','_blank')">&#x1F4CB; Overview</button>
         <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
     </div>
 </div>
@@ -157,11 +160,12 @@ function populateCategoryFilter() {
 }
 
 function resetFilters() {
-    document.getElementById("fFrom").value = "";
-    document.getElementById("fTo").value   = "";
-    document.getElementById("fCat").value  = "";
+    document.getElementById("fFrom").value     = "";
+    document.getElementById("fTo").value       = "";
+    document.getElementById("fCat").value      = "";
     document.getElementById("fMinTotal").value = "";
     document.getElementById("txSearch").value  = "";
+    document.getElementById("fArchived").value = "active";
     sortKey = "date_desc";
     document.getElementById("txSort").value = sortKey;
     currentPage = 1;
@@ -172,11 +176,12 @@ function resetFilters() {
 /*  Filter + sort                                                  */
 /* ──────────────────────────────────────────────────────────────── */
 function applyFiltersAndRender() {
-    var fFrom    = document.getElementById("fFrom").value;
-    var fTo      = document.getElementById("fTo").value;
-    var fCat     = document.getElementById("fCat").value;
-    var fMin     = parseFloat(document.getElementById("fMinTotal").value) || 0;
-    var fSearch  = (document.getElementById("txSearch").value || "").toLowerCase();
+    var fFrom     = document.getElementById("fFrom").value;
+    var fTo       = document.getElementById("fTo").value;
+    var fCat      = document.getElementById("fCat").value;
+    var fMin      = parseFloat(document.getElementById("fMinTotal").value) || 0;
+    var fSearch   = (document.getElementById("txSearch").value || "").toLowerCase();
+    var fArchived = document.getElementById("fArchived").value;   /* "active" | "all" | "archived" */
 
     filtered = allTx.filter(function (tx) {
         var d = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
@@ -187,6 +192,8 @@ function applyFiltersAndRender() {
             var hasCat = (tx.items || []).some(function (i) { return i.category === fCat; });
             if (!hasCat) { return false; }
         }
+        if (fArchived === "active"   &&  tx._archived) { return false; }
+        if (fArchived === "archived" && !tx._archived) { return false; }
         if (fSearch) {
             var inId   = (tx.id || "").toLowerCase().includes(fSearch);
             var inItem = (tx.items || []).some(function (i) {

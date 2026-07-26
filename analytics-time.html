@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POS · Time Analytics</title>
+    <script src="css/theme-switcher.js"></script>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>&#x23F0; Time Analytics</h1>
+    <div class="hdr-btns">
+        <span class="theme-switcher"></span>
+        <button class="btn btn-export" id="btnExportCSV">&#x2B07; Export CSV</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Overview</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-period.html','_blank')">&#x1F4C5; Period Analytics</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics-overview.html','_blank')">&#x1F4CB; Overview</button>
+        <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
+    </div>
+</div>
+
+<!-- Filter bar -->
+<div id="filterBar">
+    <div class="filter-group">
+        <label for="fFrom">From</label>
+        <input type="date" id="fFrom" />
+    </div>
+    <div class="filter-group">
+        <label for="fTo">To</label>
+        <input type="date" id="fTo" />
+    </div>
+    <div class="filter-group">
+        <label for="fCat">Category</label>
+        <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <div class="filter-group">
+        <label for="fView">Group by</label>
+        <select id="fView">
+            <option value="slot">Time Slot</option>
+            <option value="hour">Hour of Day</option>
+            <option value="dow">Day of Week</option>
+            <option value="date">Calendar Day</option>
+        </select>
+    </div>
+    <button class="btn btn-back" id="btnApply">&#x1F50D; Apply</button>
+    <button class="btn btn-back" id="btnReset">Reset</button>
+</div>
+
+<!-- KPI strip -->
+<div id="kpiStrip">
+    <div class="kpi-card">
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value" id="kTx">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Peak Time Slot</div>
+        <div class="kpi-value" id="kPeakSlot" style="font-size:15px;line-height:1.3">—</div>
+        <div class="kpi-sub"  id="kPeakSlotSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Peak Hour</div>
+        <div class="kpi-value" id="kPeakHour">—</div>
+        <div class="kpi-sub"  id="kPeakHourSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Busiest Day</div>
+        <div class="kpi-value" id="kPeakDow">—</div>
+        <div class="kpi-sub"  id="kPeakDowSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Avg. Revenue / Tx</div>
+        <div class="kpi-value" id="kAvg">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kRev">—</div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div id="chartsRow">
+    <div class="chart-card" style="flex:2 1 400px">
+        <h3 id="mainChartTitle">Transactions by Time Slot</h3>
+        <div id="chartMain"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Revenue by Time Slot</h3>
+        <div id="chartSlotRev"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Top Items per Time Slot</h3>
+        <div id="chartTopItems"></div>
+    </div>
+</div>
+
+<!-- Detail list -->
+<div id="listSection">
+    <h2 id="listTitle">Breakdown</h2>
+    <div id="listToolbar">
+        <input type="text" id="itemSearch" placeholder="Search date, hour, slot, or item name…" />
+        <select id="itemSort">
+            <option value="tx_desc">Most transactions</option>
+            <option value="rev_desc">Highest revenue</option>
+            <option value="qty_desc">Most items sold</option>
+            <option value="label_asc">Label A → Z</option>
+        </select>
+    </div>
+    <div id="itemTableWrap"></div>
+    <div id="pagination"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ── Constants ──────────────────────────────────────────────────────────── */
+var PAGE_SIZE = 20;
+var DOW_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+var SLOTS = [
+    { key: "morning",   label: "Morning",   icon: "🌅", start:  6, end: 11 },
+    { key: "lunch",     label: "Lunch",     icon: "🍽",  start: 11, end: 14 },
+    { key: "afternoon", label: "Afternoon", icon: "☀",  start: 14, end: 17 },
+    { key: "evening",   label: "Evening",   icon: "🌆", start: 17, end: 21 },
+    { key: "night",     label: "Night",     icon: "🌙", start: 21, end: 24 },
+    { key: "latenight", label: "Late Night",icon: "🌃", start:  0, end:  6 }
+];
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+var allTx    = [];
+var filtered = [];
+var rows     = [];      /* aggregated display rows for current view */
+var sortKey  = "tx_desc";
+var viewMode = "slot";
+var currentPage = 1;
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function eur(v) { return "\u20AC" + (+v || 0).toFixed(2); }
+
+function slotForHour(h) {
+    for (var i = 0; i < SLOTS.length; i++) {
+        var s = SLOTS[i];
+        if (s.start <= s.end) {
+            if (h >= s.start && h < s.end) { return s; }
+        } else {
+            if (h >= s.start || h < s.end) { return s; }
+        }
+    }
+    return SLOTS[SLOTS.length - 1];
+}
+
+function pad2(n) { return String(n).padStart(2, "0"); }
+
+function txHour(tx) {
+    if (!tx.timestamp) { return null; }
+    return new Date(tx.timestamp).getHours();
+}
+function txDate(tx) {
+    return tx.timestamp ? tx.timestamp.slice(0, 10) : null;
+}
+function txDow(tx) {
+    if (!tx.timestamp) { return null; }
+    return new Date(tx.timestamp).getDay();
+}
+
+/* ── Load ───────────────────────────────────────────────────────────────── */
+function loadTx() {
+    return fetch("/transactions")
+        .then(function (r) { return r.json(); })
+        .catch(function ()  { return []; });
+}
+
+function init() {
+    loadTx().then(function (data) {
+        allTx = Array.isArray(data) ? data : [];
+        populateCategoryFilter();
+        applyFiltersAndRender();
+    });
+
+    document.getElementById("btnApply").addEventListener("click", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnReset").addEventListener("click", resetFilters);
+    document.getElementById("itemSearch").addEventListener("input", function () {
+        currentPage = 1; renderTable(); renderPagination();
+    });
+    document.getElementById("itemSort").addEventListener("change", function () {
+        sortKey = this.value; currentPage = 1; sortRows(); renderTable(); renderPagination();
+    });
+    document.getElementById("fView").addEventListener("change", function () {
+        viewMode = this.value; currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
+}
+
+function populateCategoryFilter() {
+    var cats = {};
+    allTx.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) { cats[i.category] = true; });
+    });
+    var sel = document.getElementById("fCat");
+    Object.keys(cats).sort().forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c; sel.appendChild(o);
+    });
+}
+
+function resetFilters() {
+    document.getElementById("fFrom").value = "";
+    document.getElementById("fTo").value   = "";
+    document.getElementById("fCat").value  = "";
+    document.getElementById("fView").value = "slot";
+    document.getElementById("itemSearch").value = "";
+    viewMode = "slot"; sortKey = "tx_desc";
+    document.getElementById("itemSort").value = sortKey;
+    currentPage = 1; applyFiltersAndRender();
+}
+
+/* ── Filter ─────────────────────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+    viewMode = document.getElementById("fView").value;
+    var fFrom = document.getElementById("fFrom").value;
+    var fTo   = document.getElementById("fTo").value;
+    var fCat  = document.getElementById("fCat").value;
+
+    filtered = allTx.filter(function (tx) {
+        var d = txDate(tx) || "";
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        if (fCat) {
+            var has = (tx.items || []).some(function (i) { return i.category === fCat; });
+            if (!has) { return false; }
+        }
+        return true;
+    });
+
+    aggregate();
+    sortRows();
+    renderKPIs();
+    renderCharts();
+    renderTable();
+    renderPagination();
+}
+
+/* ── Aggregate into rows ────────────────────────────────────────────────── */
+function aggregate() {
+    var map = {};
+
+    filtered.forEach(function (tx) {
+        var h   = txHour(tx);
+        var key, label;
+
+        if (viewMode === "slot") {
+            var s  = h !== null ? slotForHour(h) : { key:"unknown", label:"Unknown", icon:"?" };
+            key    = s.key;
+            label  = s.icon + " " + s.label;
+        } else if (viewMode === "hour") {
+            key    = h !== null ? pad2(h) : "??";
+            label  = h !== null ? pad2(h) + ":00 – " + pad2((h + 1) % 24) + ":00" : "Unknown";
+        } else if (viewMode === "dow") {
+            var d  = txDow(tx);
+            key    = d !== null ? String(d) : "?";
+            label  = d !== null ? DOW_NAMES[d] : "Unknown";
+        } else {
+            /* date */
+            key    = txDate(tx) || "unknown";
+            label  = key;
+        }
+
+        if (!map[key]) {
+            map[key] = {
+                key:     key,
+                label:   label,
+                txCount: 0,
+                revenue: 0,
+                tax:     0,
+                qty:     0,
+                items:   {}   /* name → qty */
+            };
+        }
+        var r = map[key];
+        r.txCount++;
+        r.revenue += tx.total || 0;
+        r.tax     += tx.totalTax || 0;
+        (tx.items || []).forEach(function (i) {
+            r.qty += i.quantity;
+            r.items[i.name] = (r.items[i.name] || 0) + i.quantity;
+        });
+    });
+
+    /* sort keys sensibly */
+    var keys = Object.keys(map);
+    if (viewMode === "slot") {
+        var slotOrder = SLOTS.map(function (s) { return s.key; });
+        keys.sort(function (a, b) { return slotOrder.indexOf(a) - slotOrder.indexOf(b); });
+    } else if (viewMode === "dow") {
+        keys.sort(function (a, b) { return (+a) - (+b); });
+    } else {
+        keys.sort();
+    }
+
+    rows = keys.map(function (k) { return map[k]; });
+}
+
+function sortRows() {
+    rows.sort(function (a, b) {
+        switch (sortKey) {
+            case "tx_desc":    return b.txCount - a.txCount;
+            case "rev_desc":   return b.revenue - a.revenue;
+            case "qty_desc":   return b.qty - a.qty;
+            case "label_asc":  return a.label.localeCompare(b.label);
+            default:           return 0;
+        }
+    });
+}
+
+/* ── KPIs ───────────────────────────────────────────────────────────────── */
+function renderKPIs() {
+    var n   = filtered.length;
+    var rev = filtered.reduce(function (s, tx) { return s + (tx.total || 0); }, 0);
+    var avg = n ? rev / n : 0;
+
+    /* peak slot */
+    var slotBuckets = {};
+    filtered.forEach(function (tx) {
+        var h = txHour(tx);
+        if (h === null) { return; }
+        var sk = slotForHour(h).key;
+        slotBuckets[sk] = (slotBuckets[sk] || 0) + 1;
+    });
+    var peakSlotKey = Object.keys(slotBuckets).sort(function (a, b) {
+        return slotBuckets[b] - slotBuckets[a];
+    })[0];
+    var peakSlotObj = peakSlotKey ? SLOTS.find(function (s) { return s.key === peakSlotKey; }) : null;
+
+    /* peak hour */
+    var hourBuckets = {};
+    filtered.forEach(function (tx) {
+        var h = txHour(tx);
+        if (h === null) { return; }
+        hourBuckets[h] = (hourBuckets[h] || 0) + 1;
+    });
+    var peakHour = Object.keys(hourBuckets).sort(function (a, b) {
+        return hourBuckets[b] - hourBuckets[a];
+    })[0];
+
+    /* peak dow */
+    var dowBuckets = {};
+    filtered.forEach(function (tx) {
+        var d = txDow(tx);
+        if (d === null) { return; }
+        dowBuckets[d] = (dowBuckets[d] || 0) + 1;
+    });
+    var peakDow = Object.keys(dowBuckets).sort(function (a, b) {
+        return dowBuckets[b] - dowBuckets[a];
+    })[0];
+
+    document.getElementById("kTx").textContent        = n;
+    document.getElementById("kPeakSlot").textContent  = peakSlotObj ? peakSlotObj.icon + " " + peakSlotObj.label : "—";
+    document.getElementById("kPeakSlotSub").textContent = peakSlotKey ? slotBuckets[peakSlotKey] + " transactions" : "";
+    document.getElementById("kPeakHour").textContent  = peakHour !== undefined ? pad2(peakHour) + ":00" : "—";
+    document.getElementById("kPeakHourSub").textContent = peakHour !== undefined ? hourBuckets[peakHour] + " transactions" : "";
+    document.getElementById("kPeakDow").textContent   = peakDow !== undefined ? DOW_NAMES[peakDow] : "—";
+    document.getElementById("kPeakDowSub").textContent = peakDow !== undefined ? dowBuckets[peakDow] + " transactions" : "";
+    document.getElementById("kAvg").textContent       = eur(avg);
+    document.getElementById("kRev").textContent       = eur(rev);
+}
+
+/* ── Charts ─────────────────────────────────────────────────────────────── */
+function barChart(containerId, items, colorClass) {
+    colorClass = colorClass || "";
+    var max = items.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
+    var html = items.map(function (r) {
+        var pct = (r.value / max * 100).toFixed(1);
+        var tip = r.label + " | " + r.display +
+                  (r.sub !== undefined ? " | " + r.sub : "");
+        return '<div class="bar-row" title="' + tip + '">' +
+               '<div class="bar-label">' + r.label + '</div>' +
+               '<div class="bar-track"><div class="bar-fill ' + colorClass + '" style="width:' + pct + '%"></div></div>' +
+               '<div class="bar-val">' + r.display + '</div>' +
+               (r.sub !== undefined ? '<div class="bar-items">' + r.sub + '</div>' : '') +
+               '</div>';
+    }).join("");
+    document.getElementById(containerId).innerHTML = html ||
+        '<div style="color:#8c959f;font-size:12px">No data</div>';
+}
+
+function renderCharts() {
+    var titles = { slot:"Time Slot", hour:"Hour of Day", dow:"Day of Week", date:"Calendar Day" };
+    document.getElementById("mainChartTitle").textContent = "Transactions by " + titles[viewMode];
+
+    /* main chart — tx count by current view */
+    barChart("chartMain", rows.map(function (r) {
+        return { label: r.label, value: r.txCount,
+                 display: r.txCount + " tx", sub: r.qty + " items" };
+    }), "purple");
+
+    /* always show slot revenue regardless of view */
+    var slotRevMap = {};
+    filtered.forEach(function (tx) {
+        var h = txHour(tx);
+        if (h === null) { return; }
+        var sk = slotForHour(h).label;
+        slotRevMap[sk] = (slotRevMap[sk] || 0) + (tx.total || 0);
+    });
+    var slotRevRows = SLOTS
+        .filter(function (s) { return slotRevMap[s.label]; })
+        .map(function (s) {
+            return { label: s.icon + " " + s.label,
+                     value: slotRevMap[s.label],
+                     display: eur(slotRevMap[s.label]) };
+        });
+    barChart("chartSlotRev", slotRevRows, "green");
+
+    /* top item per slot */
+    var slotItemMap = {};
+    filtered.forEach(function (tx) {
+        var h = txHour(tx);
+        if (h === null) { return; }
+        var slotLabel = slotForHour(h).label;
+        if (!slotItemMap[slotLabel]) { slotItemMap[slotLabel] = {}; }
+        (tx.items || []).forEach(function (i) {
+            slotItemMap[slotLabel][i.name] = (slotItemMap[slotLabel][i.name] || 0) + i.quantity;
+        });
+    });
+    var topItemRows = SLOTS
+        .filter(function (s) { return slotItemMap[s.label]; })
+        .map(function (s) {
+            var imap  = slotItemMap[s.label];
+            var top   = Object.keys(imap).sort(function (a, b) { return imap[b] - imap[a]; })[0];
+            return { label: s.icon + " " + s.label,
+                     value: top ? imap[top] : 0,
+                     display: top || "—",
+                     sub: top ? imap[top] + " units" : "" };
+        })
+        .filter(function (r) { return r.value > 0; });
+    barChart("chartTopItems", topItemRows, "orange");
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+function renderTable() {
+    var wrap     = document.getElementById("itemTableWrap");
+    var fSearch  = (document.getElementById("itemSearch").value || "").toLowerCase();
+    var titles   = { slot:"Time Slot", hour:"Hour", dow:"Day of Week", date:"Date" };
+    document.getElementById("listTitle").textContent = "Breakdown by " + titles[viewMode];
+
+    var display = rows.filter(function (r) {
+        if (!fSearch) { return true; }
+        if (r.label.toLowerCase().includes(fSearch)) { return true; }
+        return Object.keys(r.items).some(function (n) { return n.toLowerCase().includes(fSearch); });
+    });
+
+    if (!display.length) {
+        wrap.innerHTML =
+            '<div class="empty"><div class="empty-icon">&#x23F0;</div>' +
+            (allTx.length ? 'No data matches the current filters.' :
+             'No transactions recorded yet.<br>Complete a sale in the POS to see time analytics.') +
+            '</div>';
+        return;
+    }
+
+    var totalRev = rows.reduce(function (s, r) { return s + r.revenue; }, 0) || 1;
+    var start    = (currentPage - 1) * PAGE_SIZE;
+    var page     = display.slice(start, start + PAGE_SIZE);
+
+    var thead =
+        '<thead><tr>' +
+        '<th>' + titles[viewMode] + '</th>' +
+        '<th style="text-align:right">Transactions</th>' +
+        '<th style="text-align:right">Items Sold</th>' +
+        '<th style="text-align:right">Revenue</th>' +
+        '<th style="text-align:right">Tax</th>' +
+        '<th style="text-align:right">Avg / Tx</th>' +
+        '<th>Top Seller</th>' +
+        '<th>Revenue Share</th>' +
+        '</tr></thead>';
+
+    var tbody = page.map(function (r) {
+        var topName = "—", topQty = 0;
+        Object.keys(r.items).forEach(function (n) {
+            if (r.items[n] > topQty) { topQty = r.items[n]; topName = n; }
+        });
+        var avg      = r.txCount ? r.revenue / r.txCount : 0;
+        var revShare = (r.revenue / totalRev * 100).toFixed(1);
+        var barW     = Math.round(r.revenue / totalRev * 100);
+
+        return '<tr>' +
+            '<td><strong>' + r.label + '</strong></td>' +
+            '<td style="text-align:right"><strong>' + r.txCount + '</strong></td>' +
+            '<td style="text-align:right">' + r.qty + '</td>' +
+            '<td style="text-align:right" class="amt">' + eur(r.revenue) + '</td>' +
+            '<td style="text-align:right" class="mono">' + eur(r.tax) + '</td>' +
+            '<td style="text-align:right" class="mono">' + eur(avg) + '</td>' +
+            '<td><span class="pill">' + topName + '</span>' +
+                (topQty ? '<span style="font-size:11px;color:#57606a;margin-left:4px">×' + topQty + '</span>' : '') +
+            '</td>' +
+            '<td style="min-width:110px">' +
+                '<div style="display:flex;align-items:center;gap:6px">' +
+                '<div class="bar-track" style="flex:1;height:10px">' +
+                  '<div class="bar-fill" style="width:' + barW + '%"></div>' +
+                '</div>' +
+                '<span style="font-size:11px;color:#57606a;white-space:nowrap">' + revShare + '%</span>' +
+                '</div>' +
+            '</td>' +
+            '</tr>';
+    }).join("");
+
+    wrap.innerHTML = '<table>' + thead + '<tbody>' + tbody + '</tbody></table>';
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+function renderPagination() {
+    var fSearch  = (document.getElementById("itemSearch").value || "").toLowerCase();
+    var display  = rows.filter(function (r) {
+        if (!fSearch) { return true; }
+        if (r.label.toLowerCase().includes(fSearch)) { return true; }
+        return Object.keys(r.items).some(function (n) { return n.toLowerCase().includes(fSearch); });
+    });
+    var totalPages = Math.max(1, Math.ceil(display.length / PAGE_SIZE));
+    var pg = document.getElementById("pagination");
+    if (totalPages <= 1) { pg.innerHTML = ""; return; }
+
+    pg.innerHTML =
+        '<button class="page-btn" id="pgPrev">&laquo; Prev</button>' +
+        '<span id="pageInfo">' + currentPage + ' / ' + totalPages + '</span>' +
+        '<button class="page-btn" id="pgNext">Next &raquo;</button>';
+
+    document.getElementById("pgPrev").addEventListener("click", function () {
+        if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); }
+    });
+    document.getElementById("pgNext").addEventListener("click", function () {
+        if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); }
+    });
+}
+
+/* ── Export CSV ─────────────────────────────────────────────────────────── */
+function exportCSV() {
+    if (!rows.length) { alert("No data to export."); return; }
+    var header = ["Label","Transactions","Items Sold","Revenue","Tax","Avg/Tx","Top Seller","Top Seller Qty"].join(",");
+    var lines  = rows.map(function (r) {
+        var topName = "—", topQty = 0;
+        Object.keys(r.items).forEach(function (n) {
+            if (r.items[n] > topQty) { topQty = r.items[n]; topName = n; }
+        });
+        var avg = r.txCount ? (r.revenue / r.txCount) : 0;
+        function q(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }
+        return [q(r.label), r.txCount, r.qty,
+                r.revenue.toFixed(2), r.tax.toFixed(2), avg.toFixed(2),
+                q(topName), topQty].join(",");
+    });
+    var csv  = [header].concat(lines).join("\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_time_analytics_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.href = url; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+/* ── Bootstrap ── */
+init();
+</script>
+</body>
+</html>

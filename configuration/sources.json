@@ -1,0 +1,10 @@
+{
+  "_comment": "Controls which transaction sources the server includes in GET /transactions. Change a value and save — no server restart required, takes effect on the next page refresh.",
+
+  "sources": {
+    "active":         { "enabled": true,  "description": "Live transactions in ./transactions/*.json" },
+    "testing-time":   { "enabled": true,  "description": "Generated test data in ./transactions/testing-time/" },
+    "testing-period": { "enabled": true,  "description": "3-year period test data in ./transactions/testing-period/" },
+    "backup":         { "enabled": false, "description": "Archived transactions in ./transactions/backup/<stamp>/" }
+  }
+}

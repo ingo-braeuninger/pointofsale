@@ -32,8 +32,11 @@
         <h1>&#x1F6D2; Point of Sale</h1>
         <div id="posHeaderBtns">
             <span class="theme-switcher"></span>
+            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-overview.html','_blank')">&#x1F4CB; Overview</button>
             <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Analytics</button>
             <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-items.html','_blank')">&#x1F6D2; Item Analytics</button>
+            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-time.html','_blank')">&#x23F0; Time Analytics</button>
+            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-period.html','_blank')">&#x1F4C5; Period Analytics</button>
             <button class="pos-btn pos-btn-danger"  id="btnClear"  onclick="posClear()">&#x1F5D1; Clear</button>
             <button class="pos-btn pos-btn-success" id="btnTotal"  onclick="posTotal()">&#x2713; Total</button>
         </div>
@@ -271,6 +274,7 @@ window.posTotal = function () {
     document.getElementById("posCatalogWrap").classList.add("dimmed");
     renderOrder();
     document.getElementById("posHeaderBtns").innerHTML =
+        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics-overview.html\',\'_blank\')">&#x1F4CB; Overview</button>' +
         '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics.html\',\'_blank\')">&#x1F4CA; Analytics</button>' +
         '<button class="pos-btn pos-btn-new"     onclick="posNewSale()">&#x2B; New Sale</button>' +
         '<button class="pos-btn pos-btn-default" onclick="posPrint()">&#x1F5A8; Print &amp; Save PDF</button>';
@@ -319,8 +323,7 @@ window.posPrint = function () {
         return "<tr class='tax'><td colspan='5'>" + b.label + "</td><td style='text-align:right'>" + eur(b.amount) + "</td></tr>";
     }).join("");
 
-    var w = window.open("", "_blank", "width=560,height=720");
-    w.document.write(
+    var receiptHtml =
         "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
         "<title>Receipt " + txId + "</title><style>" +
         "@media print{@page{size:A5;margin:12mm}}" +
@@ -351,8 +354,23 @@ window.posPrint = function () {
         "</tfoot></table>" +
         "<div class='ty'>\u2605 Thank you! \u2605</div>" +
         "<div class='hint'>Use &ldquo;Save as PDF&rdquo; in the print dialog to store this receipt.</div>" +
-        "</body></html>"
-    );
+        "</body></html>";
+
+    /* Persist receipt HTML to server (transactions/receipts/receipt_<id>.html) */
+    fetch("/save-receipt", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ id: txId, html: receiptHtml })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.ok) { console.log("Receipt saved \u2192 " + d.file); }
+    })
+    .catch(function (e) { console.warn("Receipt not saved to server:", e.message); });
+
+    /* Open print popup */
+    var w = window.open("", "_blank", "width=560,height=720");
+    w.document.write(receiptHtml);
     w.document.close();
     w.focus();
     setTimeout(function () { w.print(); }, 400);
