@@ -358,49 +358,51 @@ window.posPrint = function () {
     setTimeout(function () { w.print(); }, 400);
 };
 
-/* ── SAPUI5: product tile grid — data sourced from model/products.js ─────── */
+/* ── SAPUI5: product tile grid — catalog loaded from configuration/catalog.json */
 sap.ui.getCore().attachInit(function () {
     sap.ui.require([
-        "pos/model/products",
+        "pos/model/products",   /* returns a Promise<{ CATEGORIES, PRODUCTS }> */
         "sap/m/GenericTile",
         "sap/m/TileContent",
         "sap/m/NumericContent",
         "sap/m/MessageToast",
         "sap/ui/layout/Grid"
-    ], function (ProductCatalog, GenericTile, TileContent, NumericContent, MessageToast, Grid) {
+    ], function (catalogPromise, GenericTile, TileContent, NumericContent, MessageToast, Grid) {
 
-        var PRODUCTS = ProductCatalog.PRODUCTS;
+        catalogPromise.then(function (catalog) {
+            var PRODUCTS = catalog.PRODUCTS;
 
-        var oGrid = new Grid({
-            defaultSpan: "XL3 L4 M6 S12",
-            hSpacing: 0.5,
-            vSpacing: 0.5,
-            content: PRODUCTS.map(function (p) {
-                return new GenericTile({
-                    header:    p.name,
-                    subheader: p.category + " \u00b7 " + Math.round(p.taxRate * 100) + "%",
-                    frameType: "OneByOne",
-                    press: function () {
-                        addItem(p);
-                        MessageToast.show(p.name + " added");
-                    },
-                    tileContent: [
-                        new TileContent({
-                            content: new NumericContent({
-                                value:      p.price,
-                                scale:      "\u20ac",
-                                valueColor: "Good",
-                                indicator:  "None",
-                                withMargin: false,
-                                iconLoaded: false
+            var oGrid = new Grid({
+                defaultSpan: "XL3 L4 M6 S12",
+                hSpacing: 0.5,
+                vSpacing: 0.5,
+                content: PRODUCTS.map(function (p) {
+                    return new GenericTile({
+                        header:    p.name,
+                        subheader: p.category + " \u00b7 " + Math.round(p.taxRate * 100) + "%",
+                        frameType: "OneByOne",
+                        press: function () {
+                            addItem(p);
+                            MessageToast.show(p.name + " added");
+                        },
+                        tileContent: [
+                            new TileContent({
+                                content: new NumericContent({
+                                    value:      p.price,
+                                    scale:      "\u20ac",
+                                    valueColor: "Good",
+                                    indicator:  "None",
+                                    withMargin: false,
+                                    iconLoaded: false
+                                })
                             })
-                        })
-                    ]
-                }).addStyleClass("posProductTile sapUiTinyMarginBegin sapUiTinyMarginTop");
-            })
-        });
+                        ]
+                    }).addStyleClass("posProductTile sapUiTinyMarginBegin sapUiTinyMarginTop");
+                })
+            });
 
-        oGrid.placeAt("sapCatalog");
+            oGrid.placeAt("sapCatalog");
+        });
     });
 });
 </script>

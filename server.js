@@ -4,10 +4,11 @@
  * Opens at:  http://localhost:3000
  *
  * Routes
- *   GET  /transactions        → return all transaction JSON files as an array
- *   POST /save-transaction    → write body as ./transactions/<id>.json
- *   DELETE /transactions      → delete all transaction JSON files
- *   GET  /*                   → serve static files from this directory
+ *   GET  /configuration/catalog.json  → served as a static file (edit to reconfigure)
+ *   GET  /transactions                → return all transaction JSON files as an array
+ *   POST /save-transaction            → write body as ./transactions/<id>.json
+ *   DELETE /transactions              → delete all transaction JSON files
+ *   GET  /*                           → serve all other static files
  */
 "use strict";
 
@@ -55,12 +56,41 @@ const server = http.createServer(async function (req, res) {
     /* ── GET /transactions ─────────────────────────────────────── */
     if (req.method === "GET" && req.url === "/transactions") {
         try {
-            var files = fs.readdirSync(TX_DIR)
+            var txList = [];
+
+            /* 1. active transactions in TX_DIR root */
+            fs.readdirSync(TX_DIR)
                 .filter(function (f) { return f.endsWith(".json"); })
-                .sort();                       // sort by filename = chronological
-            var txList = files.map(function (f) {
-                return JSON.parse(fs.readFileSync(path.join(TX_DIR, f), "utf8"));
-            });
+                .sort()
+                .forEach(function (f) {
+                    var tx = JSON.parse(fs.readFileSync(path.join(TX_DIR, f), "utf8"));
+                    tx._archived   = false;
+                    tx._backupFolder = null;
+                    txList.push(tx);
+                });
+
+            /* 2. archived transactions inside backup sub-folders */
+            var backupRoot = path.join(TX_DIR, "backup");
+            if (fs.existsSync(backupRoot)) {
+                fs.readdirSync(backupRoot)
+                    .filter(function (d) {
+                        return fs.statSync(path.join(backupRoot, d)).isDirectory();
+                    })
+                    .sort()
+                    .forEach(function (folder) {
+                        var folderPath = path.join(backupRoot, folder);
+                        fs.readdirSync(folderPath)
+                            .filter(function (f) { return f.endsWith(".json"); })
+                            .sort()
+                            .forEach(function (f) {
+                                var tx = JSON.parse(fs.readFileSync(path.join(folderPath, f), "utf8"));
+                                tx._archived     = true;
+                                tx._backupFolder = "transactions/backup/" + folder;
+                                txList.push(tx);
+                            });
+                    });
+            }
+
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify(txList));
         } catch (err) {
@@ -71,18 +101,38 @@ const server = http.createServer(async function (req, res) {
         return;
     }
 
-    /* ── DELETE /transactions ──────────────────────────────────── */
+    /* ── DELETE /transactions — moves files to ./transactions/backup/<timestamp>/ */
     if (req.method === "DELETE" && req.url === "/transactions") {
         try {
-            var removed = 0;
-            fs.readdirSync(TX_DIR)
-                .filter(function (f) { return f.endsWith(".json"); })
-                .forEach(function (f) {
-                    fs.unlinkSync(path.join(TX_DIR, f));
-                    removed++;
-                });
+            var files = fs.readdirSync(TX_DIR).filter(function (f) { return f.endsWith(".json"); });
+            if (files.length === 0) {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ ok: true, moved: 0, backupDir: null }));
+                return;
+            }
+
+            /* create a timestamped backup sub-folder */
+            var now    = new Date();
+            var pad    = function (n) { return String(n).padStart(2, "0"); };
+            var stamp  = now.getFullYear() + "" +
+                         pad(now.getMonth() + 1) + "" +
+                         pad(now.getDate()) + "_" +
+                         pad(now.getHours()) + "" +
+                         pad(now.getMinutes()) + "" +
+                         pad(now.getSeconds());
+            var backupDir = path.join(TX_DIR, "backup", stamp);
+            fs.mkdirSync(backupDir, { recursive: true });
+
+            files.forEach(function (f) {
+                fs.renameSync(path.join(TX_DIR, f), path.join(backupDir, f));
+            });
+
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ ok: true, removed: removed }));
+            res.end(JSON.stringify({
+                ok: true,
+                moved: files.length,
+                backupDir: "transactions/backup/" + stamp
+            }));
         } catch (err) {
             console.error("DELETE /transactions error:", err.message);
             res.writeHead(500, { "Content-Type": "application/json" });
