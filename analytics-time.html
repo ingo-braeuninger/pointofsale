@@ -310,6 +310,7 @@ function sortRows() {
             case "rev_desc":   return b.revenue - a.revenue;
             case "qty_desc":   return b.qty - a.qty;
             case "label_asc":  return a.label.localeCompare(b.label);
+            case "hour_asc":   return (+a.key) - (+b.key);
             default:           return 0;
         }
     });

@@ -422,7 +422,7 @@ sap.ui.getCore().attachInit(function () {
                         tileContent: [
                             new TileContent({
                                 content: new NumericContent({
-                                    value:      p.price,
+                                    value:      p.price.toFixed(2),
                                     scale:      "\u20ac",
                                     valueColor: "Good",
                                     indicator:  "None",

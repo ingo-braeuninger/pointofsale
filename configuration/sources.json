@@ -3,8 +3,8 @@
 
   "sources": {
     "active":         { "enabled": true,  "description": "Live transactions in ./transactions/*.json" },
-    "testing-time":   { "enabled": true,  "description": "Generated test data in ./transactions/testing-time/" },
-    "testing-period": { "enabled": true,  "description": "3-year period test data in ./transactions/testing-period/" },
+    "testing-time":   { "enabled": false,  "description": "Generated test data in ./transactions/testing-time/" },
+    "testing-period": { "enabled": false,  "description": "3-year period test data in ./transactions/testing-period/" },
     "backup":         { "enabled": false, "description": "Archived transactions in ./transactions/backup/<stamp>/" }
   }
 }
