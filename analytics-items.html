@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POS · Item Analytics</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background: #f3f4f6;
+            font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+            font-size: 14px; color: #1f2328; }
+
+        /* ── Header ── */
+        #header {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 0 20px; height: 48px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 20;
+        }
+        #header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+        #header .hdr-btns { display: flex; gap: 8px; align-items: center; }
+        .btn {
+            border: none; border-radius: 6px; padding: 6px 13px;
+            font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 5px;
+        }
+        .btn-back     { background: #f3f4f6; color: #1f2328; border: 1px solid #d1d5db; }
+        .btn-back:hover { background: #e5e7eb; }
+        .btn-export   { background: #16a34a; color: #fff; }
+        .btn-export:hover { background: #15803d; }
+        .btn-sales    { background: #3b82d4; color: #fff; }
+        .btn-sales:hover { background: #2563eb; }
+
+        /* ── Filter bar ── */
+        #filterBar {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 10px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        }
+        #filterBar label { font-size: 12px; color: #57606a; font-weight: 600; }
+        #filterBar input, #filterBar select {
+            border: 1px solid #d1d5db; border-radius: 5px;
+            padding: 5px 9px; font-size: 13px; color: #1f2328; background: #fff; outline: none;
+        }
+        #filterBar input:focus, #filterBar select:focus { border-color: #3b82d4; }
+        .filter-group { display: flex; align-items: center; gap: 6px; }
+
+        /* ── KPI strip ── */
+        #kpiStrip { display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap; }
+        .kpi-card {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+            padding: 14px 20px; flex: 1 1 150px; min-width: 130px;
+        }
+        .kpi-label { font-size: 11px; color: #57606a; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .kpi-value { font-size: 24px; font-weight: 700; color: #1f2328; }
+        .kpi-sub   { font-size: 11px; color: #57606a; margin-top: 2px; }
+
+        /* ── Charts row ── */
+        #chartsRow { display: flex; gap: 12px; padding: 0 20px 16px; flex-wrap: wrap; }
+        .chart-card {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+            padding: 16px; flex: 1 1 280px; min-width: 260px;
+        }
+        .chart-card h3 { margin: 0 0 12px; font-size: 13px; color: #57606a;
+            font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+
+        /* bar chart */
+        .bar-row { display: flex; align-items: center; gap: 8px;
+            margin-bottom: 7px; font-size: 12px; cursor: default; }
+        .bar-row:hover .bar-fill  { filter: brightness(1.12); }
+        .bar-row:hover .bar-label,
+        .bar-row:hover .bar-val,
+        .bar-row:hover .bar-items { color: #1f2328; }
+        .bar-label { width: 110px; flex-shrink: 0; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; color: #1f2328; }
+        .bar-track { flex: 1; background: #f0f0f0; border-radius: 4px; height: 14px; overflow: hidden; }
+        .bar-fill  { height: 100%; border-radius: 4px; background: #3b82d4; transition: width .3s; }
+        .bar-fill.purple { background: #7c5cd8; }
+        .bar-fill.green  { background: #16a34a; }
+        .bar-fill.orange { background: #ea580c; }
+        .bar-val   { width: 60px; text-align: right; color: #57606a; flex-shrink: 0; }
+        .bar-items { width: 58px; text-align: right; color: #8c959f; font-size: 11px; flex-shrink: 0; }
+
+        /* ── Item list ── */
+        #listSection { padding: 0 20px 20px; }
+        #listSection h2 { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #1f2328; }
+        #listToolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+        #itemSearch { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 10px;
+            font-size: 13px; flex: 1 1 200px; outline: none; }
+        #itemSearch:focus { border-color: #3b82d4; }
+        #itemSort { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 13px; }
+
+        table { width: 100%; border-collapse: collapse; background: #fff;
+            border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        thead th { background: #f7f8fa; border-bottom: 2px solid #e5e7eb;
+            padding: 9px 12px; text-align: left; font-size: 12px;
+            font-weight: 600; color: #57606a; white-space: nowrap; cursor: pointer; user-select: none; }
+        thead th:hover { background: #eef0f3; }
+        thead th.sorted { color: #3b82d4; }
+        thead th.sorted::after { content: " ▲"; font-size: 10px; }
+        thead th.sorted.desc::after { content: " ▼"; }
+        tbody tr { border-bottom: 1px solid #f0f0f0; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f7f8fa; }
+        tbody td { padding: 8px 12px; font-size: 13px; vertical-align: middle; }
+        .mono { font-family: monospace; font-size: 12px; color: #57606a; }
+        .amt  { font-weight: 700; color: #1f2328; white-space: nowrap; }
+        .pill { display: inline-block; border-radius: 12px; padding: 1px 8px;
+            font-size: 11px; font-weight: 600; background: #e8f4fd; color: #1d4ed8;
+            white-space: nowrap; }
+        .pill-tax { background: #fef3c7; color: #92400e; }
+        .rank { display: inline-block; width: 22px; height: 22px; line-height: 22px;
+            border-radius: 50%; background: #f3f4f6; color: #57606a;
+            font-size: 11px; font-weight: 700; text-align: center; }
+        .rank.top1 { background: #fef08a; color: #713f12; }
+        .rank.top2 { background: #e2e8f0; color: #334155; }
+        .rank.top3 { background: #fed7aa; color: #7c2d12; }
+
+        /* progress bar inside cell */
+        .inline-bar { height: 5px; border-radius: 3px; background: #e0e7ff;
+            margin-top: 4px; overflow: hidden; }
+        .inline-bar-fill { height: 100%; border-radius: 3px; background: #6366f1; }
+
+        /* empty */
+        .empty { text-align: center; padding: 48px 20px; color: #8c959f;
+            font-size: 13px; line-height: 1.6; }
+        .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+        /* pagination */
+        #pagination { display: flex; gap: 6px; align-items: center;
+            justify-content: flex-end; padding: 10px 0 0; flex-wrap: wrap; }
+        .page-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 5px;
+            padding: 5px 10px; cursor: pointer; font-size: 12px; }
+        .page-btn:hover { background: #f3f4f6; }
+        .page-btn.active { background: #3b82d4; color: #fff; border-color: #3b82d4; }
+        #pageInfo { font-size: 12px; color: #57606a; padding: 0 6px; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>&#x1F6D2; Item Analytics</h1>
+    <div class="hdr-btns">
+        <button class="btn btn-export" id="btnExportCSV">&#x2B07; Export CSV</button>
+        <button class="btn btn-sales"  onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Overview</button>
+        <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
+    </div>
+</div>
+
+<!-- Filter bar -->
+<div id="filterBar">
+    <div class="filter-group">
+        <label for="fFrom">From</label>
+        <input type="date" id="fFrom" />
+    </div>
+    <div class="filter-group">
+        <label for="fTo">To</label>
+        <input type="date" id="fTo" />
+    </div>
+    <div class="filter-group">
+        <label for="fCat">Category</label>
+        <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <div class="filter-group">
+        <label for="fMinQty">Min Qty Sold</label>
+        <input type="number" id="fMinQty" min="0" step="1" style="width:80px" placeholder="0" />
+    </div>
+    <div class="filter-group">
+        <label for="fMinRev">Min Revenue (€)</label>
+        <input type="number" id="fMinRev" min="0" step="0.01" style="width:90px" placeholder="0.00" />
+    </div>
+    <button class="btn btn-back" id="btnApply">&#x1F50D; Apply</button>
+    <button class="btn btn-back" id="btnReset">Reset</button>
+</div>
+
+<!-- KPI strip -->
+<div id="kpiStrip">
+    <div class="kpi-card">
+        <div class="kpi-label">Unique Products</div>
+        <div class="kpi-value" id="kProducts">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Units Sold</div>
+        <div class="kpi-value" id="kUnits">—</div>
+        <div class="kpi-sub"  id="kUnitsSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Item Revenue</div>
+        <div class="kpi-value" id="kRev">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Item Tax</div>
+        <div class="kpi-value" id="kTax">—</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Best Seller</div>
+        <div class="kpi-value" id="kBest" style="font-size:15px;line-height:1.3">—</div>
+        <div class="kpi-sub"  id="kBestSub"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Avg Units / Transaction</div>
+        <div class="kpi-value" id="kAvgUnits">—</div>
+        <div class="kpi-sub"  id="kAvgUnitsSub"></div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div id="chartsRow">
+    <div class="chart-card">
+        <h3>Top 10 Items by Quantity Sold</h3>
+        <div id="chartQty"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Top 10 Items by Revenue</h3>
+        <div id="chartRev"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Revenue &amp; Qty by Category</h3>
+        <div id="chartCat"></div>
+    </div>
+</div>
+
+<!-- Item list -->
+<div id="listSection">
+    <h2>Item Detail List</h2>
+    <div id="listToolbar">
+        <input type="text" id="itemSearch" placeholder="Search product name or category…" />
+        <select id="itemSort">
+            <option value="qty_desc">Most sold first</option>
+            <option value="qty_asc">Least sold first</option>
+            <option value="rev_desc">Highest revenue</option>
+            <option value="rev_asc">Lowest revenue</option>
+            <option value="tax_desc">Highest tax</option>
+            <option value="name_asc">Name A → Z</option>
+        </select>
+    </div>
+    <div id="itemTableWrap"></div>
+    <div id="pagination"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ── Constants ──────────────────────────────────────────────────────────── */
+var TX_KEY   = "pos_transactions";
+var PAGE_SIZE = 20;
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+var allTx       = [];   // raw transactions from localStorage
+var allItems    = [];   // aggregated item rows (one per unique product)
+var filtered    = [];   // after filters applied
+var sortKey     = "qty_desc";
+var currentPage = 1;
+var maxRev      = 1;    // used for inline progress bars
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function eur(v)  { return "\u20AC" + (+v || 0).toFixed(2); }
+function pct(v)  { return Math.round((+v || 0) * 100) + "%"; }
+function num(v)  { return (+v || 0).toFixed(2); }
+
+function loadTx() {
+    try { return JSON.parse(localStorage.getItem(TX_KEY) || "[]"); }
+    catch (e) { return []; }
+}
+
+/* ── Aggregate: build one row per unique product from raw transactions ──── */
+function aggregateItems(transactions) {
+    var map = {};   // key: product id
+
+    transactions.forEach(function (tx) {
+        var txDate = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
+        (tx.items || []).forEach(function (i) {
+            var key = i.id || i.name;   // fall back to name if id missing
+            if (!map[key]) {
+                map[key] = {
+                    id:          i.id || i.name,
+                    name:        i.name,
+                    category:    i.category,
+                    unitPrice:   i.price,
+                    taxRate:     i.taxRate,
+                    qty:         0,
+                    revenue:     0,
+                    taxAmount:   0,
+                    txCount:     0,       // how many transactions contain this product
+                    firstSeen:   txDate,
+                    lastSeen:    txDate
+                };
+            }
+            var row = map[key];
+            row.qty       += i.quantity;
+            row.revenue   += i.subtotal;
+            row.taxAmount += (i.taxAmount !== undefined ? i.taxAmount : i.subtotal * i.taxRate);
+            row.txCount   += 1;
+            if (txDate && txDate < row.firstSeen) { row.firstSeen = txDate; }
+            if (txDate && txDate > row.lastSeen)  { row.lastSeen  = txDate; }
+        });
+    });
+
+    return Object.values(map);
+}
+
+/* ── Boot ───────────────────────────────────────────────────────────────── */
+function init() {
+    allTx = loadTx();
+    populateCategoryFilter();
+    applyFiltersAndRender();
+
+    document.getElementById("btnApply").addEventListener("click", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnReset").addEventListener("click", resetFilters);
+    document.getElementById("itemSearch").addEventListener("input", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("itemSort").addEventListener("change", function () {
+        sortKey = this.value; currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
+}
+
+function populateCategoryFilter() {
+    var cats = {};
+    allTx.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) { cats[i.category] = true; });
+    });
+    var sel = document.getElementById("fCat");
+    Object.keys(cats).sort().forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+    });
+}
+
+function resetFilters() {
+    document.getElementById("fFrom").value   = "";
+    document.getElementById("fTo").value     = "";
+    document.getElementById("fCat").value    = "";
+    document.getElementById("fMinQty").value = "";
+    document.getElementById("fMinRev").value = "";
+    document.getElementById("itemSearch").value = "";
+    sortKey = "qty_desc";
+    document.getElementById("itemSort").value = sortKey;
+    currentPage = 1;
+    applyFiltersAndRender();
+}
+
+/* ── Filter + sort ──────────────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+    var fFrom   = document.getElementById("fFrom").value;
+    var fTo     = document.getElementById("fTo").value;
+    var fCat    = document.getElementById("fCat").value;
+    var fMinQty = parseInt(document.getElementById("fMinQty").value, 10) || 0;
+    var fMinRev = parseFloat(document.getElementById("fMinRev").value) || 0;
+    var fSearch = (document.getElementById("itemSearch").value || "").toLowerCase();
+
+    /* filter transactions by date range first, then re-aggregate */
+    var txSubset = allTx.filter(function (tx) {
+        var d = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        return true;
+    });
+
+    allItems = aggregateItems(txSubset);
+
+    /* now filter item rows */
+    filtered = allItems.filter(function (row) {
+        if (fCat    && row.category !== fCat)    { return false; }
+        if (fMinQty && row.qty      < fMinQty)   { return false; }
+        if (fMinRev && row.revenue  < fMinRev)   { return false; }
+        if (fSearch) {
+            var match = row.name.toLowerCase().includes(fSearch) ||
+                        row.category.toLowerCase().includes(fSearch);
+            if (!match) { return false; }
+        }
+        return true;
+    });
+
+    sortRows();
+
+    maxRev = filtered.reduce(function (m, r) { return Math.max(m, r.revenue); }, 1);
+
+    renderKPIs();
+    renderCharts();
+    renderTable();
+    renderPagination();
+}
+
+function sortRows() {
+    filtered.sort(function (a, b) {
+        switch (sortKey) {
+            case "qty_asc":  return a.qty - b.qty;
+            case "qty_desc": return b.qty - a.qty;
+            case "rev_asc":  return a.revenue - b.revenue;
+            case "rev_desc": return b.revenue - a.revenue;
+            case "tax_desc": return b.taxAmount - a.taxAmount;
+            case "name_asc": return a.name.localeCompare(b.name);
+            default:         return b.qty - a.qty;
+        }
+    });
+}
+
+/* ── KPIs ───────────────────────────────────────────────────────────────── */
+function renderKPIs() {
+    var totalUnits = filtered.reduce(function (s, r) { return s + r.qty; }, 0);
+    var totalRev   = filtered.reduce(function (s, r) { return s + r.revenue; }, 0);
+    var totalTax   = filtered.reduce(function (s, r) { return s + r.taxAmount; }, 0);
+
+    /* best seller by quantity */
+    var best = filtered.reduce(function (prev, r) {
+        return (!prev || r.qty > prev.qty) ? r : prev;
+    }, null);
+
+    /* avg units per transaction (using allTx length as denominator) */
+    var txCount = allTx.filter(function (tx) {
+        var d = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
+        var fFrom = document.getElementById("fFrom").value;
+        var fTo   = document.getElementById("fTo").value;
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        return true;
+    }).length;
+    var avgUnits = txCount ? (totalUnits / txCount) : 0;
+
+    document.getElementById("kProducts").textContent  = filtered.length;
+    document.getElementById("kUnits").textContent     = totalUnits;
+    document.getElementById("kUnitsSub").textContent  = filtered.length + " product" + (filtered.length !== 1 ? "s" : "");
+    document.getElementById("kRev").textContent       = eur(totalRev);
+    document.getElementById("kTax").textContent       = eur(totalTax);
+    document.getElementById("kBest").textContent      = best ? best.name : "—";
+    document.getElementById("kBestSub").textContent   = best ? best.qty + " units · " + eur(best.revenue) : "";
+    document.getElementById("kAvgUnits").textContent  = avgUnits.toFixed(1);
+    document.getElementById("kAvgUnitsSub").textContent = txCount ? "across " + txCount + " transaction" + (txCount !== 1 ? "s" : "") : "";
+}
+
+/* ── Charts ─────────────────────────────────────────────────────────────── */
+function barChart(containerId, rows, colorClass) {
+    colorClass = colorClass || "";
+    var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
+    var html = rows.map(function (r) {
+        var pctW    = (r.value / max * 100).toFixed(1);
+        var tooltip = r.label + " | " + r.display +
+                      (r.items !== undefined ? " | " + r.items + " item" + (r.items !== 1 ? "s" : "") : "");
+        return '<div class="bar-row" title="' + tooltip + '">' +
+               '<div class="bar-label">' + r.label + '</div>' +
+               '<div class="bar-track"><div class="bar-fill ' + colorClass + '" style="width:' + pctW + '%"></div></div>' +
+               '<div class="bar-val">' + r.display + '</div>' +
+               (r.items !== undefined
+                   ? '<div class="bar-items">' + r.items + ' unit' + (r.items !== 1 ? 's' : '') + '</div>'
+                   : '') +
+               '</div>';
+    }).join("");
+    document.getElementById(containerId).innerHTML = html ||
+        '<div style="color:#8c959f;font-size:12px">No data</div>';
+}
+
+function renderCharts() {
+    /* Top 10 by qty */
+    var byQty = filtered.slice().sort(function (a, b) { return b.qty - a.qty; }).slice(0, 10);
+    barChart("chartQty", byQty.map(function (r) {
+        return { label: r.name, value: r.qty, display: r.qty + " units",
+                 items: r.qty };
+    }), "purple");
+
+    /* Top 10 by revenue */
+    var byRev = filtered.slice().sort(function (a, b) { return b.revenue - a.revenue; }).slice(0, 10);
+    barChart("chartRev", byRev.map(function (r) {
+        return { label: r.name, value: r.revenue, display: eur(r.revenue),
+                 items: r.qty };
+    }), "");
+
+    /* Revenue by category (with qty as secondary label) */
+    var catRev = {}, catQty = {};
+    filtered.forEach(function (r) {
+        catRev[r.category] = (catRev[r.category] || 0) + r.revenue;
+        catQty[r.category] = (catQty[r.category] || 0) + r.qty;
+    });
+    var catRows = Object.keys(catRev)
+        .sort(function (a, b) { return catRev[b] - catRev[a]; })
+        .map(function (k) {
+            return { label: k, value: catRev[k], display: eur(catRev[k]), items: catQty[k] };
+        });
+    barChart("chartCat", catRows, "green");
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+function renderTable() {
+    var wrap = document.getElementById("itemTableWrap");
+
+    if (!filtered.length) {
+        wrap.innerHTML =
+            '<div class="empty">' +
+            '<div class="empty-icon">&#x1F6D2;</div>' +
+            (allTx.length
+                ? 'No items match the current filters.'
+                : 'No transactions recorded yet.<br>Complete a sale in the POS to see items here.') +
+            '</div>';
+        return;
+    }
+
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var page  = filtered.slice(start, start + PAGE_SIZE);
+
+    var rows = page.map(function (row, idx) {
+        var rank     = start + idx + 1;
+        var rankCls  = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
+        var revShare = maxRev > 0 ? (row.revenue / maxRev * 100).toFixed(1) : 0;
+        var taxPct   = Math.round(row.taxRate * 100);
+
+        return '<tr>' +
+            '<td><span class="rank ' + rankCls + '">' + rank + '</span></td>' +
+            '<td><strong>' + row.name + '</strong>' +
+                '<div style="font-size:11px;color:#57606a;margin-top:2px">' +
+                    'ID: <span class="mono">' + row.id + '</span>' +
+                '</div>' +
+            '</td>' +
+            '<td><span class="pill">' + row.category + '</span></td>' +
+            '<td style="text-align:right" class="mono">' + eur(row.unitPrice) + '</td>' +
+            '<td><span class="pill pill-tax">' + taxPct + '%</span></td>' +
+            '<td style="text-align:right"><strong>' + row.qty + '</strong>' +
+                '<div style="font-size:11px;color:#57606a">' + row.txCount +
+                    ' tx</div>' +
+            '</td>' +
+            '<td style="min-width:120px">' +
+                '<div class="amt">' + eur(row.revenue) + '</div>' +
+                '<div class="inline-bar"><div class="inline-bar-fill" style="width:' + revShare + '%"></div></div>' +
+            '</td>' +
+            '<td style="text-align:right" class="mono">' + eur(row.taxAmount) + '</td>' +
+            '<td style="text-align:right;font-size:11px;color:#57606a">' +
+                (row.firstSeen === row.lastSeen
+                    ? row.firstSeen
+                    : row.firstSeen + '<br>' + row.lastSeen) +
+            '</td>' +
+            '</tr>';
+    }).join("");
+
+    wrap.innerHTML =
+        '<table>' +
+        '<thead><tr>' +
+        '<th style="width:36px">#</th>' +
+        '<th>Product</th>' +
+        '<th>Category</th>' +
+        '<th style="text-align:right">Unit Price</th>' +
+        '<th>Tax Rate</th>' +
+        '<th style="text-align:right">Qty Sold</th>' +
+        '<th>Revenue</th>' +
+        '<th style="text-align:right">Tax Collected</th>' +
+        '<th style="text-align:right">First / Last Sale</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '</table>';
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+function renderPagination() {
+    var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    var pg = document.getElementById("pagination");
+    if (totalPages <= 1) { pg.innerHTML = ""; return; }
+
+    var html = '<button class="page-btn" id="pgPrev">&laquo; Prev</button>' +
+               '<span id="pageInfo">' + currentPage + ' / ' + totalPages + '</span>' +
+               '<button class="page-btn" id="pgNext">Next &raquo;</button>';
+    pg.innerHTML = html;
+
+    document.getElementById("pgPrev").addEventListener("click", function () {
+        if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); }
+    });
+    document.getElementById("pgNext").addEventListener("click", function () {
+        if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); }
+    });
+}
+
+/* ── Export CSV ─────────────────────────────────────────────────────────── */
+function exportCSV() {
+    if (!filtered.length) { alert("No items to export."); return; }
+
+    var header = ["Rank","ID","Name","Category","Unit Price","Tax Rate %",
+                  "Qty Sold","Transactions","Revenue","Tax Collected",
+                  "First Sale","Last Sale"].join(",");
+
+    var lines = filtered.map(function (row, idx) {
+        var taxPct = Math.round(row.taxRate * 100);
+        function q(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }
+        return [
+            idx + 1,
+            q(row.id),
+            q(row.name),
+            q(row.category),
+            num(row.unitPrice),
+            taxPct,
+            row.qty,
+            row.txCount,
+            num(row.revenue),
+            num(row.taxAmount),
+            q(row.firstSeen),
+            q(row.lastSeen)
+        ].join(",");
+    });
+
+    var csv  = [header].concat(lines).join("\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_items_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.href = url;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+/* ── Bootstrap ── */
+init();
+</script>
+</body>
+</html>

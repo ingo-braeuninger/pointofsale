@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POS Analytics</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100%; background: #f3f4f6;
+            font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+            font-size: 14px; color: #1f2328; }
+
+        /* ── Header ── */
+        #header {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 0 20px; height: 48px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 20;
+        }
+        #header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+        #header .hdr-btns { display: flex; gap: 8px; align-items: center; }
+        .btn {
+            border: none; border-radius: 6px; padding: 6px 13px;
+            font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 5px;
+        }
+        .btn-back { background: #f3f4f6; color: #1f2328; border: 1px solid #d1d5db; }
+        .btn-back:hover { background: #e5e7eb; }
+        .btn-danger { background: #fff; border: 1px solid #cf222e; color: #cf222e; }
+        .btn-danger:hover { background: #fff0ee; }
+        .btn-export { background: #16a34a; color: #fff; }
+        .btn-export:hover { background: #15803d; }
+
+        /* ── Filter bar ── */
+        #filterBar {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 10px 20px; display: flex; gap: 12px; align-items: center;
+            flex-wrap: wrap;
+        }
+        #filterBar label { font-size: 12px; color: #57606a; font-weight: 600; }
+        #filterBar input, #filterBar select {
+            border: 1px solid #d1d5db; border-radius: 5px;
+            padding: 5px 9px; font-size: 13px; color: #1f2328; background: #fff;
+            outline: none;
+        }
+        #filterBar input:focus, #filterBar select:focus { border-color: #3b82d4; }
+        #filterBar .filter-group { display: flex; align-items: center; gap: 6px; }
+
+        /* ── KPI strip ── */
+        #kpiStrip {
+            display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap;
+        }
+        .kpi-card {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+            padding: 14px 20px; flex: 1 1 160px; min-width: 140px;
+        }
+        .kpi-label { font-size: 11px; color: #57606a; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .kpi-value { font-size: 24px; font-weight: 700; color: #1f2328; }
+        .kpi-sub   { font-size: 11px; color: #57606a; margin-top: 2px; }
+
+        /* ── Charts row ── */
+        #chartsRow {
+            display: flex; gap: 12px; padding: 0 20px 16px; flex-wrap: wrap;
+        }
+        .chart-card {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+            padding: 16px; flex: 1 1 280px; min-width: 260px;
+        }
+        .chart-card h3 { margin: 0 0 12px; font-size: 13px; color: #57606a;
+            font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+
+        /* simple bar chart */
+        .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+        .bar-label { width: 110px; flex-shrink: 0; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; color: #1f2328; }
+        .bar-track { flex: 1; background: #f0f0f0; border-radius: 4px; height: 14px; overflow: hidden; }
+        .bar-fill   { height: 100%; border-radius: 4px; background: #3b82d4; transition: width .3s; }
+        .bar-fill.purple { background: #7c5cd8; }
+        .bar-fill.green  { background: #16a34a; }
+        .bar-val   { width: 60px; text-align: right; color: #57606a; flex-shrink: 0; }
+        .bar-items { width: 58px; text-align: right; color: #8c959f; font-size: 11px; flex-shrink: 0; }
+        .bar-row   { cursor: default; }
+        .bar-row:hover .bar-fill   { filter: brightness(1.12); }
+        .bar-row:hover .bar-label,
+        .bar-row:hover .bar-val,
+        .bar-row:hover .bar-items  { color: #1f2328; }
+
+        /* ── Transaction list ── */
+        #listSection { padding: 0 20px 20px; }
+        #listSection h2 { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #1f2328; }
+
+        /* search / sort toolbar */
+        #listToolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+        #txSearch { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 10px;
+            font-size: 13px; flex: 1 1 200px; outline: none; }
+        #txSearch:focus { border-color: #3b82d4; }
+        #txSort { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 13px; }
+
+        table { width: 100%; border-collapse: collapse; background: #fff;
+            border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        thead th { background: #f7f8fa; border-bottom: 2px solid #e5e7eb;
+            padding: 9px 12px; text-align: left; font-size: 12px;
+            font-weight: 600; color: #57606a; white-space: nowrap; cursor: pointer; }
+        thead th:hover { background: #eef0f3; }
+        thead th.sorted { color: #3b82d4; }
+        tbody tr { border-bottom: 1px solid #f0f0f0; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f7f8fa; }
+        tbody td { padding: 8px 12px; font-size: 13px; vertical-align: top; }
+        .mono  { font-family: monospace; font-size: 12px; color: #57606a; }
+        .amt   { font-weight: 700; color: #1f2328; white-space: nowrap; }
+        .pill  { display: inline-block; border-radius: 12px; padding: 1px 8px;
+            font-size: 11px; font-weight: 600; background: #e8f4fd; color: #1d4ed8;
+            margin: 1px 2px; white-space: nowrap; }
+
+        /* expand row */
+        .expand-btn { background: none; border: none; cursor: pointer; color: #3b82d4;
+            font-size: 12px; padding: 0; font-weight: 600; }
+        .expand-btn:hover { text-decoration: underline; }
+        .tx-detail-row td { background: #f7f8fa; padding: 8px 16px 12px; }
+        .tx-detail-row table { border: none; background: transparent; }
+        .tx-detail-row thead th { background: transparent; font-size: 11px; }
+        .tx-detail-row tbody td { font-size: 12px; padding: 5px 10px; }
+
+        /* empty / no-data */
+        .empty { text-align: center; padding: 48px 20px; color: #8c959f; font-size: 13px; line-height: 1.6; }
+        .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+        /* pagination */
+        #pagination { display: flex; gap: 6px; align-items: center;
+            justify-content: flex-end; padding: 10px 0 0; flex-wrap: wrap; }
+        .page-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 5px;
+            padding: 5px 10px; cursor: pointer; font-size: 12px; }
+        .page-btn:hover { background: #f3f4f6; }
+        .page-btn.active { background: #3b82d4; color: #fff; border-color: #3b82d4; }
+        #pageInfo { font-size: 12px; color: #57606a; padding: 0 6px; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>&#x1F4CA; Sales Analytics</h1>
+    <div class="hdr-btns">
+        <button class="btn btn-export" id="btnExportAll">&#x2B07; Export All JSON</button>
+        <button class="btn btn-danger"  id="btnClearAll">&#x1F5D1; Clear Data</button>
+        <button class="btn btn-sales"   onclick="window.open('analytics-items.html','_blank')" style="background:#7c5cd8;color:#fff">&#x1F6D2; Item Analytics</button>
+        <button class="btn btn-back"   onclick="window.close()">&#x2190; Close</button>
+    </div>
+</div>
+
+<!-- Filter bar -->
+<div id="filterBar">
+    <div class="filter-group">
+        <label for="fFrom">From</label>
+        <input type="date" id="fFrom" />
+    </div>
+    <div class="filter-group">
+        <label for="fTo">To</label>
+        <input type="date" id="fTo" />
+    </div>
+    <div class="filter-group">
+        <label for="fCat">Category</label>
+        <select id="fCat"><option value="">All categories</option></select>
+    </div>
+    <div class="filter-group">
+        <label for="fMinTotal">Min Total (€)</label>
+        <input type="number" id="fMinTotal" min="0" step="0.01" style="width:90px" placeholder="0.00" />
+    </div>
+    <button class="btn btn-back" id="btnApply">&#x1F50D; Apply</button>
+    <button class="btn btn-back" id="btnReset">Reset</button>
+</div>
+
+<!-- KPI strip -->
+<div id="kpiStrip">
+    <div class="kpi-card"><div class="kpi-label">Transactions</div>
+        <div class="kpi-value" id="kTx">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="kRev">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Tax</div>
+        <div class="kpi-value" id="kTax">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg. Order Value</div>
+        <div class="kpi-value" id="kAvg">—</div><div class="kpi-sub" id="kAvgSub"></div></div>
+    <div class="kpi-card"><div class="kpi-label">Items Sold</div>
+        <div class="kpi-value" id="kItems">—</div></div>
+</div>
+
+<!-- Charts row -->
+<div id="chartsRow">
+    <div class="chart-card">
+        <h3>Revenue by Category</h3>
+        <div id="chartCategory"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Top 8 Products by Revenue</h3>
+        <div id="chartProducts"></div>
+    </div>
+    <div class="chart-card">
+        <h3>Tax Collected by Rate</h3>
+        <div id="chartTax"></div>
+    </div>
+</div>
+
+<!-- Transaction list -->
+<div id="listSection">
+    <h2>Transaction List</h2>
+    <div id="listToolbar">
+        <input type="text" id="txSearch" placeholder="Search transaction ID or item name…" />
+        <select id="txSort">
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="total_desc">Highest total</option>
+            <option value="total_asc">Lowest total</option>
+        </select>
+    </div>
+    <div id="txTableWrap"></div>
+    <div id="pagination"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Data                                                           */
+/* ──────────────────────────────────────────────────────────────── */
+var TX_KEY   = "pos_transactions";
+var PAGE_SIZE = 15;
+
+var allTx    = [];   // raw from localStorage
+var filtered = [];   // after filters
+var sortKey  = "date_desc";
+var currentPage = 1;
+var expandedId  = null;
+
+function loadTx() {
+    try { return JSON.parse(localStorage.getItem(TX_KEY) || "[]"); }
+    catch (e) { return []; }
+}
+
+function eur(v) { return "\u20AC" + (+v || 0).toFixed(2); }
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Boot                                                           */
+/* ──────────────────────────────────────────────────────────────── */
+function init() {
+    allTx = loadTx();
+    populateCategoryFilter();
+    applyFiltersAndRender();
+
+    document.getElementById("btnApply").addEventListener("click", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnReset").addEventListener("click", resetFilters);
+    document.getElementById("txSearch").addEventListener("input", function () {
+        currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("txSort").addEventListener("change", function () {
+        sortKey = this.value; currentPage = 1; applyFiltersAndRender();
+    });
+    document.getElementById("btnExportAll").addEventListener("click", exportAll);
+    document.getElementById("btnClearAll").addEventListener("click", clearAll);
+}
+
+function populateCategoryFilter() {
+    var cats = {};
+    allTx.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) { cats[i.category] = true; });
+    });
+    var sel = document.getElementById("fCat");
+    Object.keys(cats).sort().forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+    });
+}
+
+function resetFilters() {
+    document.getElementById("fFrom").value = "";
+    document.getElementById("fTo").value   = "";
+    document.getElementById("fCat").value  = "";
+    document.getElementById("fMinTotal").value = "";
+    document.getElementById("txSearch").value  = "";
+    sortKey = "date_desc";
+    document.getElementById("txSort").value = sortKey;
+    currentPage = 1;
+    applyFiltersAndRender();
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Filter + sort                                                  */
+/* ──────────────────────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+    var fFrom    = document.getElementById("fFrom").value;
+    var fTo      = document.getElementById("fTo").value;
+    var fCat     = document.getElementById("fCat").value;
+    var fMin     = parseFloat(document.getElementById("fMinTotal").value) || 0;
+    var fSearch  = (document.getElementById("txSearch").value || "").toLowerCase();
+
+    filtered = allTx.filter(function (tx) {
+        var d = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
+        if (fFrom && d < fFrom) { return false; }
+        if (fTo   && d > fTo)   { return false; }
+        if (fMin  && tx.total < fMin) { return false; }
+        if (fCat) {
+            var hasCat = (tx.items || []).some(function (i) { return i.category === fCat; });
+            if (!hasCat) { return false; }
+        }
+        if (fSearch) {
+            var inId   = (tx.id || "").toLowerCase().includes(fSearch);
+            var inItem = (tx.items || []).some(function (i) {
+                return i.name.toLowerCase().includes(fSearch);
+            });
+            if (!inId && !inItem) { return false; }
+        }
+        return true;
+    });
+
+    /* sort */
+    filtered.sort(function (a, b) {
+        if (sortKey === "date_asc")   { return a.timestamp < b.timestamp ? -1 : 1; }
+        if (sortKey === "date_desc")  { return a.timestamp > b.timestamp ? -1 : 1; }
+        if (sortKey === "total_asc")  { return a.total - b.total; }
+        if (sortKey === "total_desc") { return b.total - a.total; }
+        return 0;
+    });
+
+    renderKPIs();
+    renderCharts();
+    renderTable();
+    renderPagination();
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  KPIs                                                           */
+/* ──────────────────────────────────────────────────────────────── */
+function renderKPIs() {
+    var n    = filtered.length;
+    var rev  = filtered.reduce(function (s, tx) { return s + tx.total; }, 0);
+    var tax  = filtered.reduce(function (s, tx) { return s + (tx.totalTax || 0); }, 0);
+    var itms = filtered.reduce(function (s, tx) {
+        return s + (tx.items || []).reduce(function (ss, i) { return ss + i.quantity; }, 0);
+    }, 0);
+    var avg  = n ? rev / n : 0;
+
+    document.getElementById("kTx").textContent    = n;
+    document.getElementById("kRev").textContent   = eur(rev);
+    document.getElementById("kTax").textContent   = eur(tax);
+    document.getElementById("kAvg").textContent   = eur(avg);
+    document.getElementById("kAvgSub").textContent = n ? "over " + n + " sale" + (n !== 1 ? "s" : "") : "";
+    document.getElementById("kItems").textContent = itms;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Charts                                                         */
+/* ──────────────────────────────────────────────────────────────── */
+function barChart(containerId, rows, colorClass) {
+    colorClass = colorClass || "";
+    var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
+    var html = rows.map(function (r) {
+        var pct     = (r.value / max * 100).toFixed(1);
+        var tooltip = r.label + " | " + r.display +
+                      (r.items !== undefined ? " | " + r.items + " item" + (r.items !== 1 ? "s" : "") : "");
+        return '<div class="bar-row" title="' + tooltip + '">' +
+               '<div class="bar-label">' + r.label + '</div>' +
+               '<div class="bar-track"><div class="bar-fill ' + colorClass + '" style="width:' + pct + '%"></div></div>' +
+               '<div class="bar-val">' + r.display + '</div>' +
+               (r.items !== undefined
+                   ? '<div class="bar-items">' + r.items + ' item' + (r.items !== 1 ? 's' : '') + '</div>'
+                   : '') +
+               '</div>';
+    }).join("");
+    document.getElementById(containerId).innerHTML = html || '<div style="color:#8c959f;font-size:12px">No data</div>';
+}
+
+function renderCharts() {
+    /* Revenue by category — also track item count per category */
+    var catRev  = {};
+    var catQty  = {};
+    filtered.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) {
+            catRev[i.category] = (catRev[i.category] || 0) + i.subtotal;
+            catQty[i.category] = (catQty[i.category] || 0) + i.quantity;
+        });
+    });
+    var catRows = Object.keys(catRev)
+        .sort(function (a, b) { return catRev[b] - catRev[a]; })
+        .map(function (k) { return { label: k, value: catRev[k], display: eur(catRev[k]), items: catQty[k] }; });
+    barChart("chartCategory", catRows, "");
+
+    /* Top products by revenue — also track item count per product */
+    var prodRev = {};
+    var prodQty = {};
+    filtered.forEach(function (tx) {
+        (tx.items || []).forEach(function (i) {
+            prodRev[i.name] = (prodRev[i.name] || 0) + i.subtotal;
+            prodQty[i.name] = (prodQty[i.name] || 0) + i.quantity;
+        });
+    });
+    var prodRows = Object.keys(prodRev)
+        .sort(function (a, b) { return prodRev[b] - prodRev[a]; })
+        .slice(0, 8)
+        .map(function (k) { return { label: k, value: prodRev[k], display: eur(prodRev[k]), items: prodQty[k] }; });
+    barChart("chartProducts", prodRows, "purple");
+
+    /* Tax by rate — count items that contributed to each tax bucket */
+    var taxAmt  = {};
+    var taxQty  = {};
+    filtered.forEach(function (tx) {
+        /* build a category→qty map for this transaction */
+        var txCatQty = {};
+        (tx.items || []).forEach(function (i) {
+            txCatQty[i.category] = (txCatQty[i.category] || 0) + i.quantity;
+        });
+        (tx.taxBreakdown || []).forEach(function (b) {
+            taxAmt[b.label] = (taxAmt[b.label] || 0) + b.amount;
+        });
+        /* match tax label back to item quantities via category name embedded in label */
+        (tx.items || []).forEach(function (i) {
+            /* label format: "Tax <Category> (<pct>%)" */
+            var matchLabel = null;
+            (tx.taxBreakdown || []).forEach(function (b) {
+                if (b.label.indexOf(i.category) !== -1) { matchLabel = b.label; }
+            });
+            if (matchLabel) {
+                taxQty[matchLabel] = (taxQty[matchLabel] || 0) + i.quantity;
+            }
+        });
+    });
+    var taxRows = Object.keys(taxAmt)
+        .sort(function (a, b) { return taxAmt[b] - taxAmt[a]; })
+        .map(function (k) { return { label: k, value: taxAmt[k], display: eur(taxAmt[k]), items: taxQty[k] || 0 }; });
+    barChart("chartTax", taxRows, "green");
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Transaction table                                              */
+/* ──────────────────────────────────────────────────────────────── */
+function renderTable() {
+    var wrap = document.getElementById("txTableWrap");
+    if (!filtered.length) {
+        wrap.innerHTML =
+            '<div class="empty">' +
+            '<div class="empty-icon">&#x1F4CB;</div>' +
+            (allTx.length ? 'No transactions match the current filters.' :
+             'No transactions recorded yet.<br>Complete a sale in the POS to see it here.') +
+            '</div>';
+        return;
+    }
+
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var page  = filtered.slice(start, start + PAGE_SIZE);
+
+    var rows = page.map(function (tx) {
+        var dt      = tx.timestamp ? new Date(tx.timestamp).toLocaleString() : tx.id;
+        var cats    = [];
+        var itemQty = 0;
+        (tx.items || []).forEach(function (i) {
+            if (!cats.includes(i.category)) { cats.push(i.category); }
+            itemQty += i.quantity;
+        });
+        var pillsHtml = cats.map(function (c) {
+            return '<span class="pill">' + c + '</span>';
+        }).join("");
+
+        var isExpanded = expandedId === tx.id;
+
+        var mainRow =
+            '<tr>' +
+            '<td><button class="expand-btn" data-txid="' + tx.id + '">' +
+              (isExpanded ? '&#x25BC;' : '&#x25BA;') + '</button></td>' +
+            '<td class="mono">' + tx.id + '</td>' +
+            '<td>' + dt + '</td>' +
+            '<td>' + pillsHtml + '</td>' +
+            '<td style="text-align:center">' + itemQty + '</td>' +
+            '<td style="text-align:right" class="mono">' + eur(tx.subtotal) + '</td>' +
+            '<td style="text-align:right" class="mono">' + eur(tx.totalTax) + '</td>' +
+            '<td style="text-align:right" class="amt">' + eur(tx.total) + '</td>' +
+            '</tr>';
+
+        var detailRow = "";
+        if (isExpanded) {
+            var itemRows = (tx.items || []).map(function (i) {
+                var taxAmt = i.taxAmount !== undefined ? i.taxAmount : i.subtotal * i.taxRate;
+                return '<tr>' +
+                       '<td>' + i.name + '</td>' +
+                       '<td>' + i.category + '</td>' +
+                       '<td style="text-align:center">' + i.quantity + '</td>' +
+                       '<td style="text-align:right">' + eur(i.price) + '</td>' +
+                       '<td style="text-align:center">' + Math.round(i.taxRate * 100) + '%</td>' +
+                       '<td style="text-align:right">' + eur(taxAmt) + '</td>' +
+                       '<td style="text-align:right">' + eur(i.subtotal) + '</td>' +
+                       '</tr>';
+            }).join("");
+            detailRow =
+                '<tr class="tx-detail-row">' +
+                '<td colspan="8">' +
+                '<table><thead><tr>' +
+                '<th>Item</th><th>Category</th><th style="text-align:center">Qty</th>' +
+                '<th style="text-align:right">Unit Price</th>' +
+                '<th style="text-align:center">Tax%</th>' +
+                '<th style="text-align:right">Tax Amt</th>' +
+                '<th style="text-align:right">Subtotal</th>' +
+                '</tr></thead><tbody>' + itemRows + '</tbody></table>' +
+                '</td></tr>';
+        }
+        return mainRow + detailRow;
+    }).join("");
+
+    wrap.innerHTML =
+        '<table>' +
+        '<thead><tr>' +
+        '<th style="width:28px"></th>' +
+        '<th>TX ID</th>' +
+        '<th>Date / Time</th>' +
+        '<th>Categories</th>' +
+        '<th style="text-align:center">Items</th>' +
+        '<th style="text-align:right">Subtotal</th>' +
+        '<th style="text-align:right">Tax</th>' +
+        '<th style="text-align:right">Total</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '</table>';
+
+    /* expand/collapse listeners */
+    wrap.querySelectorAll(".expand-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var id = this.getAttribute("data-txid");
+            expandedId = (expandedId === id) ? null : id;
+            renderTable();
+            renderPagination();
+        });
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Pagination                                                     */
+/* ──────────────────────────────────────────────────────────────── */
+function renderPagination() {
+    var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    var pg = document.getElementById("pagination");
+    if (totalPages <= 1) { pg.innerHTML = ""; return; }
+
+    var html = '<button class="page-btn" id="pgPrev">&laquo; Prev</button>';
+    html += '<span id="pageInfo">' + currentPage + ' / ' + totalPages + '</span>';
+    html += '<button class="page-btn" id="pgNext">Next &raquo;</button>';
+    pg.innerHTML = html;
+
+    document.getElementById("pgPrev").addEventListener("click", function () {
+        if (currentPage > 1) { currentPage--; expandedId = null; renderTable(); renderPagination(); }
+    });
+    document.getElementById("pgNext").addEventListener("click", function () {
+        if (currentPage < totalPages) { currentPage++; expandedId = null; renderTable(); renderPagination(); }
+    });
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/*  Export / Clear                                                 */
+/* ──────────────────────────────────────────────────────────────── */
+function exportAll() {
+    if (!allTx.length) { alert("No transactions to export."); return; }
+    var blob = new Blob([JSON.stringify(allTx, null, 2)], { type: "application/json" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.download = "pos_transactions_" + new Date().toISOString().slice(0,10) + ".json";
+    a.href = url;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+function clearAll() {
+    if (!allTx.length) { alert("Nothing to clear."); return; }
+    if (!confirm("Delete ALL " + allTx.length + " stored transaction(s)? This cannot be undone.")) { return; }
+    localStorage.removeItem(TX_KEY);
+    allTx    = [];
+    filtered = [];
+    currentPage = 1;
+    expandedId  = null;
+    document.getElementById("fCat").innerHTML = '<option value="">All categories</option>';
+    applyFiltersAndRender();
+}
+
+/* ── Bootstrap ── */
+init();
+</script>
+</body>
+</html>

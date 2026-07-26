@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Point of Sale</title>
+    <!-- transactions are persisted in localStorage under key "pos_transactions" -->
     <script
         id="sap-ui-bootstrap"
         src="https://ui5.sap.com/1.136/resources/sap-ui-core.js"
@@ -180,6 +181,8 @@
         .pos-btn-default:hover { background: #e5e7eb; }
         .pos-btn-new      { background: #0ea5e9; color: #fff; }
         .pos-btn-new:hover { background: #0284c7; }
+        .pos-btn-analytics { background: #7c5cd8; color: #fff; }
+        .pos-btn-analytics:hover { background: #6d3fc0; }
     </style>
 </head>
 <body>
@@ -191,6 +194,8 @@
     <div id="posHeader">
         <h1>&#x1F6D2; Point of Sale</h1>
         <div id="posHeaderBtns">
+            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics.html','_blank')">&#x1F4CA; Sales Analytics</button>
+            <button class="pos-btn pos-btn-analytics" onclick="window.open('analytics-items.html','_blank')" style="background:#6d3fc0">&#x1F6D2; Item Analytics</button>
             <button class="pos-btn pos-btn-danger"  id="btnClear"  onclick="posClear()">&#x1F5D1; Clear</button>
             <button class="pos-btn pos-btn-success" id="btnTotal"  onclick="posTotal()">&#x2713; Total</button>
         </div>
@@ -222,9 +227,54 @@
 <script>
 "use strict";
 
+/* ── Transaction persistence ─────────────────────────────────────────────── */
+var TX_KEY = "pos_transactions";
+
+function loadTransactions() {
+    try { return JSON.parse(localStorage.getItem(TX_KEY) || "[]"); }
+    catch (e) { return []; }
+}
+
+function saveTransaction(tx) {
+    var all = loadTransactions();
+    all.push(tx);
+    try { localStorage.setItem(TX_KEY, JSON.stringify(all)); } catch (e) {}
+}
+
+/**
+ * Save transaction to ./transactions/ via the local server (node server.js).
+ * Falls back to a browser download if the server is not reachable.
+ */
+function saveTransactionFile(tx) {
+    fetch("/save-transaction", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(tx)
+    })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+        if (!data.ok) { throw new Error(data.error || "server error"); }
+        console.log("Transaction saved → " + data.file);
+    })
+    .catch(function (err) {
+        /* Server not running — fall back to browser download */
+        console.warn("Server unavailable (" + err.message + "), downloading instead.");
+        var blob = new Blob([JSON.stringify(tx, null, 2)], { type: "application/json" });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement("a");
+        a.download = "transaction_" + tx.id + ".json";
+        a.href     = url;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    });
+}
+
 /* ── State ──────────────────────────────────────────────────────────────── */
 var aItems    = [];
 var bFinished = false;
+var currentTxId = null;
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 function eur(v) { return "\u20ac" + (+v || 0).toFixed(2); }
@@ -331,15 +381,61 @@ function addItem(p) {
     renderOrder();
 }
 
+/* ── Build transaction object ───────────────────────────────────────────── */
+function buildTransaction() {
+    var sub       = subtotal();
+    var breakdown = taxBreakdown();
+    var totalTax  = breakdown.reduce(function (s, b) { return s + b.amount; }, 0);
+    var tot       = sub + totalTax;
+    var now       = new Date();
+    var pad       = function (n) { return String(n).padStart(2, "0"); };
+    var id        = now.getFullYear() + "" +
+                    pad(now.getMonth() + 1) + "" +
+                    pad(now.getDate()) + "_" +
+                    pad(now.getHours()) + "" +
+                    pad(now.getMinutes()) + "" +
+                    pad(now.getSeconds());
+    return {
+        id:           id,
+        timestamp:    now.toISOString(),
+        items: aItems.map(function (i) {
+            return {
+                id:       i.id,
+                name:     i.name,
+                category: i.category,
+                price:    +i.price.toFixed(4),
+                taxRate:  i.taxRate,
+                quantity: i.quantity,
+                subtotal: +i.subtotal.toFixed(4),
+                taxAmount:+(i.subtotal * i.taxRate).toFixed(4)
+            };
+        }),
+        subtotal:     +sub.toFixed(4),
+        taxBreakdown: breakdown.map(function (b) {
+            return { label: b.label, amount: +b.amount.toFixed(4) };
+        }),
+        totalTax:     +totalTax.toFixed(4),
+        total:        +tot.toFixed(4)
+    };
+}
+
 /* ── Header button: Total ───────────────────────────────────────────────── */
 window.posTotal = function () {
     if (!aItems.length) { alert("Add items first."); return; }
+
+    /* Build & persist the transaction */
+    var tx = buildTransaction();
+    currentTxId = tx.id;
+    saveTransaction(tx);
+    saveTransactionFile(tx);
+
     bFinished = true;
     document.getElementById("posCatalogWrap").classList.add("dimmed");
     renderOrder();
     document.getElementById("posHeaderBtns").innerHTML =
+        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics.html\',\'_blank\')">&#x1F4CA; Analytics</button>' +
         '<button class="pos-btn pos-btn-new"     onclick="posNewSale()">&#x2B; New Sale</button>' +
-        '<button class="pos-btn pos-btn-default" onclick="posPrint()">&#x1F5A8; Print Receipt</button>';
+        '<button class="pos-btn pos-btn-default" onclick="posPrint()">&#x1F5A8; Print &amp; Save PDF</button>';
 };
 
 /* ── Header button: Clear ───────────────────────────────────────────────── */
@@ -352,55 +448,72 @@ window.posClear = function () {
 
 /* ── Header button: New Sale ────────────────────────────────────────────── */
 window.posNewSale = function () {
-    bFinished = false;
-    aItems    = [];
+    bFinished   = false;
+    aItems      = [];
+    currentTxId = null;
     document.getElementById("posCatalogWrap").classList.remove("dimmed");
     renderOrder();
     document.getElementById("posHeaderBtns").innerHTML =
+        '<button class="pos-btn pos-btn-analytics" onclick="window.open(\'analytics.html\',\'_blank\')">&#x1F4CA; Analytics</button>' +
         '<button class="pos-btn pos-btn-danger"  id="btnClear" onclick="posClear()">&#x1F5D1; Clear</button>' +
         '<button class="pos-btn pos-btn-success" id="btnTotal" onclick="posTotal()">&#x2713; Total</button>';
 };
 
-/* ── Print receipt ──────────────────────────────────────────────────────── */
+/* ── Print receipt (opens print dialog → Save as PDF) ───────────────────── */
 window.posPrint = function () {
     if (!aItems.length) { alert("Nothing to print."); return; }
     var sub       = subtotal();
     var breakdown = taxBreakdown();
     var tot       = sub + breakdown.reduce(function (s, b) { return s + b.amount; }, 0);
+    var txId      = currentTxId || "receipt";
 
     var rows = aItems.map(function (i) {
+        var taxAmt = i.subtotal * i.taxRate;
         return "<tr><td>" + i.name + "</td>" +
                "<td style='text-align:center'>" + i.quantity + "</td>" +
                "<td style='text-align:right'>" + eur(i.price) + "</td>" +
                "<td style='text-align:center'>" + Math.round(i.taxRate * 100) + "%</td>" +
+               "<td style='text-align:right'>" + eur(taxAmt) + "</td>" +
                "<td style='text-align:right'>" + eur(i.subtotal) + "</td></tr>";
     }).join("");
 
     var taxRows = breakdown.map(function (b) {
-        return "<tr class='tax'><td colspan='4'>" + b.label + "</td><td style='text-align:right'>" + eur(b.amount) + "</td></tr>";
+        return "<tr class='tax'><td colspan='5'>" + b.label + "</td><td style='text-align:right'>" + eur(b.amount) + "</td></tr>";
     }).join("");
 
-    var w = window.open("", "_blank", "width=480,height=680");
+    var w = window.open("", "_blank", "width=560,height=720");
     w.document.write(
-        "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Receipt</title><style>" +
-        "body{font-family:monospace;font-size:13px;max-width:420px;margin:0 auto;padding:20px}" +
-        "h2{text-align:center}table{width:100%;border-collapse:collapse}" +
-        "th{border-bottom:2px solid #000;padding:4px 2px;text-align:left}" +
-        "td{padding:4px 2px;border-bottom:1px dotted #ccc}" +
+        "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+        "<title>Receipt " + txId + "</title><style>" +
+        "@media print{@page{size:A5;margin:12mm}}" +
+        "body{font-family:monospace;font-size:13px;max-width:480px;margin:0 auto;padding:20px}" +
+        "h2{text-align:center;margin-bottom:2px}" +
+        ".sub{text-align:center;color:#666;font-size:11px;margin-bottom:4px}" +
+        ".txid{text-align:center;color:#999;font-size:10px;margin-bottom:14px}" +
+        "table{width:100%;border-collapse:collapse}" +
+        "th{border-bottom:2px solid #000;padding:4px 2px;text-align:left;font-size:11px}" +
+        "td{padding:4px 2px;border-bottom:1px dotted #ccc;font-size:12px}" +
         ".tot td{border-top:2px solid #000;font-weight:bold;border-bottom:none}" +
         ".tax td{border-bottom:none;color:#555}" +
         ".ty{text-align:center;margin-top:20px;font-weight:bold}" +
+        ".hint{text-align:center;margin-top:10px;font-size:10px;color:#999}" +
         "</style></head><body>" +
         "<h2>POINT OF SALE</h2>" +
-        "<p style='text-align:center;color:#666'>" + new Date().toLocaleString() + "</p>" +
-        "<table><thead><tr><th>Item</th><th style='text-align:center'>Qty</th>" +
-        "<th style='text-align:right'>Price</th><th style='text-align:center'>Tax</th>" +
-        "<th style='text-align:right'>Total</th></tr></thead>" +
+        "<p class='sub'>" + new Date().toLocaleString() + "</p>" +
+        "<p class='txid'>TX# " + txId + "</p>" +
+        "<table><thead><tr>" +
+        "<th>Item</th><th style='text-align:center'>Qty</th>" +
+        "<th style='text-align:right'>Price</th><th style='text-align:center'>Tax%</th>" +
+        "<th style='text-align:right'>Tax</th><th style='text-align:right'>Total</th>" +
+        "</tr></thead>" +
         "<tbody>" + rows + "</tbody><tfoot>" +
-        "<tr class='tax'><td colspan='4'>Subtotal</td><td style='text-align:right'>" + eur(sub) + "</td></tr>" +
+        "<tr class='tax'><td colspan='5'>Subtotal</td><td style='text-align:right'>" + eur(sub) + "</td></tr>" +
         taxRows +
-        "<tr class='tot'><td colspan='4'>TOTAL</td><td style='text-align:right'>" + eur(tot) + "</td></tr>" +
-        "</tfoot></table><div class='ty'>\u2605 Thank you! \u2605</div></body></html>"
+        "<tr class='tot'><td colspan='5'>TOTAL</td><td style='text-align:right'>" + eur(tot) + "</td></tr>" +
+        "</tfoot></table>" +
+        "<div class='ty'>\u2605 Thank you! \u2605</div>" +
+        "<div class='hint'>Use &ldquo;Save as PDF&rdquo; in the print dialog to store this receipt.</div>" +
+        "</body></html>"
     );
     w.document.close();
     w.focus();
