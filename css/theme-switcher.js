@@ -11,11 +11,13 @@
 
     var STORAGE_KEY = "pos_theme";
     var THEMES = [
-        { id: "default", label: "☀ Default"    },
-        { id: "dark",    label: "🌙 Dark"       },
-        { id: "retro",   label: "📟 Retro"      },
-        { id: "horizon", label: "🔷 SAP Horizon" },
-        { id: "sapgui",  label: "🖥 SAP GUI"    }
+        { id: "default",   label: "☀ Default"    },
+        { id: "dark",      label: "🌙 Dark"       },
+        { id: "retro",     label: "📟 Retro"      },
+        { id: "horizon",   label: "🔷 SAP Horizon" },
+        { id: "sapgui",    label: "🖥 SAP GUI"    },
+        { id: "bootstrap", label: "🅱 Bootstrap"  },
+        { id: "yaml4",     label: "📐 YAML4"      }
     ];
 
     /* resolve path to css/ relative to the current page */
